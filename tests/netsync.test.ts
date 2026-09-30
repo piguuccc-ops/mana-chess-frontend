@@ -4,13 +4,13 @@
 // or fail – so the races an online game meets (a resignation crossing a move, a lost answer,
 // a missed event) can be played out exactly.
 import { describe, expect, it } from 'vitest';
-import { applyAction } from '../src/engine';
+import { applyAction, applyPick, draftTurn, pickBlockReason } from '../src/engine';
 import type { Action, Color, GameState, SpellId } from '../src/engine';
 import type { OnlineSession } from '../src/net/client';
 import { BUILD_ID, stateHash, type ActionRequest, type DrawAnswer, type NetEvent, type Ok, type RoomState, type Seat } from '../src/net/protocol';
 import { Lobby } from './fixtures/lobby';
 import type { LastMove } from '../src/ui/history';
-import { gameFromRoom, NetSync, type NetStatus, type OnlineGame } from '../src/ui/netSync';
+import { gameFromRoom, NetSync, type NetStatus, type OnlineDraft, type OnlineGame } from '../src/ui/netSync';
 import { S } from './helpers';
 
 const DECK: SpellId[] = ['manaMage', 'manaDeposit', 'gambit', 'sacrifice', 'overcharge', 'arcaneSurge'];
@@ -95,7 +95,7 @@ class FakeNet {
 function browser(net: FakeNet, rs: RoomState) {
   const g = gameFromRoom(net as unknown as OnlineSession, rs) as OnlineGame;
   if (typeof g === 'string') throw new Error(g);
-  const screen = { state: g.state, lastMove: null as LastMove, shows: 0, rewinds: 0, jumps: 0, toasts: [] as string[], status: null as NetStatus | null, next: [] as OnlineGame[] };
+  const screen = { state: g.state, lastMove: null as LastMove, shows: 0, rewinds: 0, jumps: 0, toasts: [] as string[], status: null as NetStatus | null, next: [] as OnlineGame[], drafts: [] as OnlineDraft[] };
   const sync = new NetSync(
     g,
     {
@@ -111,6 +111,7 @@ function browser(net: FakeNet, rs: RoomState) {
       toast: (t) => screen.toasts.push(t),
       status: (st) => (screen.status = st),
       nextGame: (next) => screen.next.push(next),
+      nextDraft: (d) => screen.drafts.push(d),
       sound: () => {},
     },
     { gap: 0, fastGap: 0, afterHold: 0, retry: 10, stuck: 30 },
@@ -142,6 +143,29 @@ function match() {
   const netW = new FakeNet(lobby, h.seat, hs.state);
   const netB = new FakeNet(lobby, j.seat, j.state);
   return { lobby, code: h.seat.code, netW, netB, white: browser(netW, hs.state), black: browser(netB, j.state) };
+}
+
+/** A Spell-toborzás room, drafted to the end: the game is on. */
+function draftMatch() {
+  const lobby = new Lobby();
+  const h = lobby.create({ name: 'Anna', deck: [], deckName: 'A', color: 'w', autoEndTurn: true, draft: true, build: BUILD_ID });
+  if (!h.ok) throw new Error(h.error);
+  const j = lobby.join(h.seat.code, { name: 'Bence', deck: [], deckName: 'B', build: BUILD_ID });
+  if (!j.ok) throw new Error(j.error);
+  let d = j.state.draft!;
+  for (let i = 0; i < 12; i++) {
+    const who = draftTurn(d)!;
+    const id = d.pool.find((s) => pickBlockReason(d, who, s) === null)!;
+    const r = lobby.pick(h.seat.code, { token: who === 'w' ? h.seat.token : j.seat.token, game: 1, spell: id });
+    if (!r.ok) throw new Error(r.error);
+    d = applyPick(d, who, id);
+  }
+  const hs = lobby.state(h.seat.code, h.seat.token);
+  const js = lobby.state(h.seat.code, j.seat.token);
+  if (!hs.ok || !js.ok) throw new Error('state');
+  const netW = new FakeNet(lobby, h.seat, hs.state);
+  const netB = new FakeNet(lobby, j.seat, js.state);
+  return { lobby, code: h.seat.code, netW, netB, white: browser(netW, hs.state), black: browser(netB, js.state), drafted: d };
 }
 
 const server = (m: ReturnType<typeof match>) => {
@@ -330,5 +354,27 @@ describe('NetSync', () => {
     m.white.sync.resync();
     await tick();
     expect(m.white.screen.next).toHaveLength(1);
+  });
+
+  it('a drafted game plays the drafted decks; its rematch hands over a new draft, not a game', async () => {
+    const m = draftMatch();
+    expect(m.white.g.setup.decks).toEqual(m.drafted.picks);
+    m.black.act({ type: 'RESIGN', color: 'b' });
+    await tick();
+    m.netW.deliver();
+    await tick();
+    m.white.sync.requestRematch();
+    await tick();
+    m.black.sync.requestRematch();
+    await tick();
+    m.netW.deliver();
+    m.netB.deliver();
+    expect(m.white.screen.next).toHaveLength(0);
+    expect(m.white.screen.drafts).toHaveLength(1);
+    expect(m.black.screen.drafts).toHaveLength(1);
+    expect(m.white.screen.drafts[0]).toMatchObject({ game: 2, me: 'b', names: { w: 'Bence', b: 'Anna' } });
+    expect(m.black.screen.drafts[0]).toMatchObject({ game: 2, me: 'w' });
+    expect(m.black.screen.drafts[0].draft.pool).toEqual(m.white.screen.drafts[0].draft.pool);
+    expect(m.white.screen.drafts[0].draft.picks).toEqual({ w: [], b: [] });
   });
 });

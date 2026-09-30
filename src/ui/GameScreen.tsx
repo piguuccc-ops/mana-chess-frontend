@@ -16,7 +16,7 @@ import { SettingsBody, Switch } from './components/Settings';
 import { SpellInspector } from './components/SpellInspector';
 import { CATEGORY_COLOR } from './format';
 import type { Step } from './history';
-import type { OnlineGame } from './netSync';
+import type { OnlineDraft, OnlineGame } from './netSync';
 import type { Prefs } from './storage';
 import { useGame, type GameConfig } from './useGame';
 import { choreograph, rewindPlan, type Plan } from './vfx/choreo';
@@ -31,6 +31,8 @@ interface Props {
   onRematch: () => void;
   /** Online: the next game in the same room has begun (both asked for a rematch). */
   onNextGame?: (g: OnlineGame) => void;
+  /** Online, Spell-toborzás room: the rematch begins with a new draft. */
+  onNextDraft?: (d: OnlineDraft) => void;
   /** Test seam: receives the dispatcher and a state getter (scenario scripts). */
   testHook?: (api: { dispatch: (a: Action) => boolean; getState: () => GameState }) => void;
 }
@@ -83,8 +85,8 @@ function stepText(s: Step): string {
   }
 }
 
-export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch, onNextGame, testHook }: Props) {
-  const { state, stateRef, dispatch, batch, toast, showToast, lastMove, thinking, undo, redo, canUndo, canRedo, hold, net, sync } = useGame(config, { onNextGame });
+export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch, onNextGame, onNextDraft, testHook }: Props) {
+  const { state, stateRef, dispatch, batch, toast, showToast, lastMove, thinking, undo, redo, canUndo, canRedo, hold, net, sync } = useGame(config, { onNextGame, onNextDraft });
   /** Online games: this browser's colour (the other side is played from another machine). */
   const me: Color | null = config.mode === 'online' && config.online ? config.online.me : null;
   const names = config.online?.setup.names ?? null;

@@ -7,7 +7,7 @@
 # unprivileged user (uid 65532). It writes nothing, so it runs with a read-only filesystem.
 #
 #   docker build -t mana-chess-frontend .
-#   docker run -d -p 8080:8080 -e MANA_BACKEND=https://sakk-api.example.com --read-only --cap-drop ALL mana-chess-frontend
+#   docker run -d -p 4545:4545 -e MANA_BACKEND=https://sakk-api.example.com --read-only --cap-drop ALL mana-chess-frontend
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── 1. build (runs on the build machine's own platform; the output is plain JavaScript/HTML) ──
@@ -21,12 +21,13 @@ RUN node scripts/build-single.mjs && node scripts/build-server.mjs
 # ── 2. run ──
 FROM gcr.io/distroless/nodejs22-debian12:nonroot
 LABEL org.opencontainers.image.title="Mana Chess game page" \
-      org.opencontainers.image.description="Serves the Mana Chess game (one self-contained HTML page)"
+      org.opencontainers.image.description="Serves the Mana Chess game (one self-contained HTML page)" \
+      org.opencontainers.image.licenses="MIT"
 WORKDIR /app
-COPY --from=build /src/dist/frontend.mjs /src/dist/mana-chess.html /src/dist/healthcheck.mjs /app/
+COPY --from=build /src/dist/frontend.mjs /src/dist/mana-chess.html /src/dist/healthcheck.mjs /src/LICENSE /app/
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=4545
 USER 65532:65532
-EXPOSE 8080
+EXPOSE 4545
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/nodejs/bin/node", "/app/healthcheck.mjs"]
 ENTRYPOINT ["/nodejs/bin/node", "/app/frontend.mjs", "--no-open"]

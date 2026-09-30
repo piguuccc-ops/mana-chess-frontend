@@ -4,7 +4,7 @@ import { applyAction, createGame, type DeckDef } from '../engine';
 import type { Action, Color, GameState, SpellId } from '../engine';
 import { sfx } from './audio/sound';
 import { GameHistory, type LastMove, type Step } from './history';
-import { lastMoveOf, NetSync, type NetStatus, type OnlineGame } from './netSync';
+import { lastMoveOf, NetSync, type NetStatus, type OnlineDraft, type OnlineGame } from './netSync';
 import type { Batch } from './vfx/choreo';
 
 export interface GameConfig {
@@ -35,7 +35,7 @@ let counter = 1;
  * Local games also keep an undo / redo history (misclicks); online games
  * keep in step with the server (see netSync.ts).
  */
-export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame) => void } = {}) {
+export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame) => void; onNextDraft?: (d: OnlineDraft) => void } = {}) {
   const [state, setState] = useState<GameState>(() =>
     config.online
       ? config.online.state
@@ -82,6 +82,8 @@ export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame)
   // ── online: one NetSync per game screen ──
   const nextGame = useRef(opts.onNextGame);
   nextGame.current = opts.onNextGame;
+  const nextDraft = useRef(opts.onNextDraft);
+  nextDraft.current = opts.onNextDraft;
   const sync = useMemo(
     () =>
       config.online
@@ -95,6 +97,7 @@ export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame)
             toast: (text, tone) => showToast(text, tone),
             status: (st) => setNetStatus(st),
             nextGame: (g) => nextGame.current?.(g),
+            nextDraft: (d) => nextDraft.current?.(d),
             sound: (name) => sfx(name),
           })
         : null,

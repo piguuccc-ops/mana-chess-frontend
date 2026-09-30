@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { opposite, PRESET_DECKS, type DeckDef } from '../engine';
+import { newDraft, opposite, PRESET_DECKS, type Color, type DeckDef, type Draft, type SpellId } from '../engine';
 import { forgetSeat, OnlineSession, rememberSeat } from '../net/client';
 import { setAmbience, setSoundSettings, sfx, unlockAudio } from './audio/sound';
 import { DeckBuilder, type DeckHome } from './components/DeckBuilder';
+import { LocalDraft, OnlineDraftScreen } from './components/Draft';
 import { Menu } from './components/Menu';
 import { OnlineHub } from './components/online/OnlineHub';
 import { Rules } from './components/Rules';
 import { GameScreen } from './GameScreen';
-import { decksOf, gameFromRoom, type OnlineGame } from './netSync';
+import { decksOf, draftFromRoom, gameFromRoom, type OnlineDraft, type OnlineGame } from './netSync';
 import { useOnline } from './online/useOnline';
 import { loadCustomDecks, loadPrefs, playableDecks, resolveDeck, saveCustomDecks, savePrefs, type Prefs } from './storage';
 import type { GameConfig } from './useGame';
 
-type Screen = 'title' | 'online' | 'decks' | 'rules' | 'game';
+type Screen = 'title' | 'online' | 'decks' | 'rules' | 'game' | 'draft';
+/** Spell-toborzás in progress: on this machine, or in an online room. */
+type DraftPlay = { kind: 'local'; draft: Draft; vsAi: boolean; autoEndTurn: boolean; key: number } | { kind: 'online'; od: OnlineDraft; key: number };
+
+/** A drafted deck as the game screen takes it. */
+const draftedDeck = (c: Color, spells: SpellId[]): DeckDef => ({ id: `draft-${c}`, name: 'Toborzott pakli', description: '', spells });
 type TransitionKind = 'book' | 'scene' | 'fade';
 interface Notice {
   id: number;
@@ -40,6 +46,7 @@ export function App() {
   const [custom, setCustom] = useState<DeckDef[]>(() => loadCustomDecks());
   const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs());
   const [config, setConfig] = useState<GameConfig | null>(null);
+  const [draftPlay, setDraftPlay] = useState<DraftPlay | null>(null);
   const [gameKey, setGameKey] = useState(0);
   const [transition, setTransition] = useState<{ kind: TransitionKind; phase: 'in' | 'out'; key: number } | null>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -61,7 +68,7 @@ export function App() {
   }, []);
 
   useEffect(() => setSoundSettings(prefs.sound), [prefs.sound]);
-  useEffect(() => setAmbience(screen === 'title' || screen === 'online' ? 'menu' : screen === 'game' ? 'war' : null), [screen]);
+  useEffect(() => setAmbience(screen === 'title' || screen === 'online' || screen === 'draft' ? 'menu' : screen === 'game' ? 'war' : null), [screen]);
   useEffect(() => {
     const unlock = () => unlockAudio();
     window.addEventListener('pointerdown', unlock);
@@ -107,6 +114,17 @@ export function App() {
   };
   const startOnlineRef = useRef(startOnline);
   startOnlineRef.current = startOnline;
+  /** Online Spell-toborzás: the room's draft screen (the game follows from it). */
+  const startOnlineDraft = (od: OnlineDraft) => {
+    sfx('turn');
+    session.current = od.session;
+    go('draft', 'scene', () => {
+      setDraftPlay({ kind: 'online', od, key: Date.now() });
+      setMenuPanel(null);
+    });
+  };
+  const startOnlineDraftRef = useRef(startOnlineDraft);
+  startOnlineDraftRef.current = startOnlineDraft;
   /** Leaving the room: a running game counts as resigned, and the room closes. */
   const leaveOnline = () => {
     const s = session.current;
@@ -122,11 +140,20 @@ export function App() {
     notify,
     // a friend accepted our challenge: the game starts – unless we are busy elsewhere
     onGame: (server, seat, state) => {
-      if (screenRef.current === 'game' || screenRef.current === 'decks') {
+      if (screenRef.current === 'game' || screenRef.current === 'decks' || screenRef.current === 'draft') {
         notify('Elfogadták a kihívásodat – a játszmát az Online menüben, a Folytatásnál éred el.');
         return;
       }
       const s = new OnlineSession(server, seat, state);
+      // a Spell-toborzás challenge begins with the draft
+      if (state.draft) {
+        const od = draftFromRoom(s, state);
+        if (typeof od === 'string') return notify(od, 'error');
+        s.start();
+        rememberSeat({ server, ...seat, opponent: od.names[od.me === 'w' ? 'b' : 'w'], at: Date.now() });
+        startOnlineDraftRef.current(od);
+        return;
+      }
       const g = gameFromRoom(s, state);
       if (typeof g === 'string') return notify(g, 'error');
       s.start();
@@ -150,6 +177,14 @@ export function App() {
 
   const start = () => {
     sfx('turn');
+    if (prefs.draft) {
+      // Spell-toborzás: the decks are drafted first
+      go('draft', 'scene', () => {
+        setDraftPlay({ kind: 'local', draft: newDraft((Math.random() * 2 ** 31) | 0), vsAi: prefs.mode === 'ai', autoEndTurn: prefs.autoEndTurn, key: Date.now() });
+        setMenuPanel(null);
+      });
+      return;
+    }
     go('game', 'scene', () => {
       setConfig({
         mode: prefs.mode === 'ai' ? 'ai' : 'local',
@@ -224,7 +259,7 @@ export function App() {
         />
       )}
       {screen === 'online' && (
-        <OnlineHub online={online} decks={onlineDecks} prefs={prefs} onPrefs={setPrefs} onGame={startOnline} onBack={() => go('title', 'fade')} notify={notify} />
+        <OnlineHub online={online} decks={onlineDecks} prefs={prefs} onPrefs={setPrefs} onGame={startOnline} onDraft={startOnlineDraft} onBack={() => go('title', 'fade')} notify={notify} />
       )}
       {screen === 'decks' && (
         <DeckBuilder
@@ -238,6 +273,41 @@ export function App() {
         />
       )}
       {screen === 'rules' && <Rules onBack={() => go('title', 'fade')} reduced={reduced} />}
+      {screen === 'draft' && draftPlay?.kind === 'local' && (
+        <LocalDraft
+          key={draftPlay.key}
+          initial={draftPlay.draft}
+          vsAi={draftPlay.vsAi}
+          reduced={reduced}
+          onLeave={() => go('title', 'fade')}
+          onDone={(picks) => {
+            const dp = draftPlay;
+            go('game', 'scene', () => {
+              setConfig({
+                mode: dp.vsAi ? 'ai' : 'local',
+                aiColor: 'b',
+                decks: { w: draftedDeck('w', picks.w), b: draftedDeck('b', picks.b) },
+                seed: (Math.random() * 2 ** 31) | 0,
+                autoEndTurn: dp.autoEndTurn,
+              });
+              setGameKey((k) => k + 1);
+            });
+          }}
+        />
+      )}
+      {screen === 'draft' && draftPlay?.kind === 'online' && (
+        <OnlineDraftScreen
+          key={draftPlay.key}
+          od={draftPlay.od}
+          reduced={reduced}
+          notify={notify}
+          onGame={(g) => startOnline(g)}
+          onLeave={() => {
+            leaveOnline();
+            go('online', 'fade');
+          }}
+        />
+      )}
       {screen === 'game' && config && (
         <GameScreen
           key={gameKey}
@@ -255,6 +325,7 @@ export function App() {
           }}
           onRematch={start}
           onNextGame={startOnline}
+          onNextDraft={startOnlineDraft}
         />
       )}
       {notices.length > 0 && (

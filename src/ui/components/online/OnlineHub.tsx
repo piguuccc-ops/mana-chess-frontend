@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import type { DeckDef } from '../../../engine';
 import { displayServer } from '../../../net/client';
-import type { OnlineGame } from '../../netSync';
+import type { OnlineDraft, OnlineGame } from '../../netSync';
 import { guessBackend, startAddress, type Online } from '../../online/useOnline';
 import type { Prefs } from '../../storage';
 import { Icon } from '../pixel';
@@ -21,11 +21,13 @@ interface Props {
   prefs: Prefs;
   onPrefs: (p: Prefs) => void;
   onGame: (g: OnlineGame) => void;
+  /** A Spell-toborzás room's draft has begun. */
+  onDraft: (d: OnlineDraft) => void;
   onBack: () => void;
   notify: (text: string, tone?: 'info' | 'error') => void;
 }
 
-export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onBack, notify }: Props) {
+export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onDraft, onBack, notify }: Props) {
   const { server, account, guest } = online;
   const [tab, setTab] = useState<'play' | 'friends'>('play');
 
@@ -100,10 +102,11 @@ export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onBack, notif
             prefs={prefs}
             onPrefs={onPrefs}
             onGame={onGame}
+            onDraft={onDraft}
             refresh={online.refresh}
           />
           {account ? (
-            <FriendsPanel account={account} origin={server.origin} decks={decks} prefs={prefs} onPrefs={onPrefs} refresh={online.refresh} onLogout={() => void online.logout()} notify={notify} />
+            <FriendsPanel account={account} decks={decks} prefs={prefs} onPrefs={onPrefs} refresh={online.refresh} onLogout={() => void online.logout()} notify={notify} />
           ) : (
             <GuestFriends info={server.info} onSignIn={() => online.setGuest(false)} />
           )}

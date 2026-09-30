@@ -16,7 +16,7 @@ npm run build          # dist/mana-chess.html (egyetlen, önálló fájl) + dist
 npm run typecheck      # típusellenőrzés
 npm run docs:spells    # SPELLS.md újragenerálása a spell-regiszterből
 npm run balance        # egyensúly-teszt: AI kontra AI véletlen paklikkal → BALANCE.md (~20 perc, 2 szálon)
-npm start              # a játékoldal-szerver (http://localhost:8080, a dist/mana-chess.html-t adja)
+npm start              # a játékoldal-szerver (http://localhost:4545, a dist/mana-chess.html-t adja)
 ```
 
 Telepítés nélkül is kipróbálható: a GitHub Releases oldalon lévő `mana-chess.html` fájlt nyisd meg a böngészőben
@@ -51,6 +51,12 @@ Technológia: React 19, TypeScript (strict), Vite, Vitest, sima CSS. A teljes me
 - **Véletlen pakli:** a menüben „🎲 Véletlen pakli” választható bármelyik oldalnak – minden játszma (és visszavágó)
   elején új, 6 különböző lapból álló paklit kap: legfeljebb egy 6 és egy 5 manás, legalább 2 db 1–2 manás spell, és a
   kezdő kézben mindig van 3 manából kijátszható lap. A pakliépítőben a „🎲 Véletlen” gomb ugyanígy tölti fel a szerkesztőt.
+- **Spell-toborzás (játékmód):** saját paklik helyett – a *Csatába!* → *Paklik* résznél, online szobában és kihívásban
+  is választható. 32 véletlen, különböző spell kerül egy 8 × 4-es asztalra (telefonon 4 × 8); felváltva választotok
+  egyet-egyet – Világos kezd –, amíg mindkettőtöknek 6 lesz. A választások sorrendje a pakli sorrendje, az első három
+  a kezdő kéz. A költségkorlát itt is él (a második 6 vagy 5 manás lap lakattal jelölve), és az asztalon mindig van
+  legalább 8 db 1–2 manás lap. Az AI a spellek egyensúly-teszt szerinti értékéből választ; online a szerver osztja az
+  asztalt és ellenőriz minden választást, a visszavágó új toborzással indul.
 - **Győzelem:** matt. Döntetlen: patt, 50 lépés ütés/gyaloglépés nélkül, csupasz királyok, megegyezés. Feladás is van.
 - **Vissza / Előre (helyi 1v1):** félrekattintás esetére a felső sávban (keskeny képernyőn a tábla alatt) két nyíl van,
   billentyűvel Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z, Macen ⌘). A Vissza egyenként visszavon minden lépést – normál lépést,
@@ -200,7 +206,9 @@ src/
       definitions.ts      mind a 71 spell
       cast.ts             közös varázslási keretrendszer (mana, ciklus, célpont-validálás szimulációval)
     decks.ts              előre elkészített paklik, validálás
+    draft.ts              Spell-toborzás: az asztal (32 lap), a választások sorrendje és ellenőrzése
   ai/simpleAI.ts          2 rétegű alfa-béta kereső + spell-értékelés
+  ai/draftAI.ts           az AI választása toborzáskor
   net/protocol.ts         online: üzenetek, setup → játék, visszajátszás, állás-ujjlenyomat (hash)
   net/client.ts           online: szobák, fiókhívások, egy szék és egy fiók élő kapcsolata (long polling, újrakapcsolódás)
   ui/
@@ -208,7 +216,7 @@ src/
     useGame.ts            játékállapot + AI; minden sikeres akcióból egy „batch” (előtte/utána állapot)
     netSync.ts            online játszma szinkronban a szerverrel (azonnali saját lépés, ütemezett ellenfél-lépések)
     online/useOnline.ts   a backend címe, a bejelentkezett fiók (profil, barátok, kihívások) és a fiók élő adatfolyama
-    components/           Menu, DeckBuilder, SpellInspector + SpellDemo, Rules, Board, PlayerPlate, …
+    components/           Menu, DeckBuilder, Draft (a toborzás asztala), SpellInspector + SpellDemo, Rules, Board, …
       online/             az Online képernyő: szerver → belépés/regisztráció/vendég → lobbi (játék + barátok)
     demo/scenarios.ts     bemutató-forgatókönyvek mind a 71 spellhez (az engine-nel lefuttatva)
     pixel/                paletta, sprite-motor, bábuk, 71 spell-ikon, UI-ikonok, állapotjelek, betűtípus-adatok
@@ -298,25 +306,32 @@ tűnjenek el (`burn`, `shatter`, `dissolve` …), és rajzolja a varázslatot a 
 Két külön program, két külön repóban (Node.js, függőségek nélkül; Docker-képként is – a szerverre telepítést a
 backend repó DEPLOY.md-je írja le lépésről lépésre):
 
-- **Backend** (`mana-chess-backend/`, alapból a 8787-es porton): fiókok, a fiókok paklijai, barátok és jelölések,
-  kihívások, játékszobák – és egy webes **vezérlőpult** a `/admin` címen. Sima HTTP; interneten az Nginx Proxy
-  Manager (NPM) adja elé a HTTPS-t, így a 443-as porton bárhonnan elérhető.
-- **Játékoldal / frontend** (`mana-chess-frontend/`, 8080-as port): csak a játékot (`mana-chess.html`) adja a
+- **Backend** (`mana-chess-backend/`, alapból az 5454-es porton): fiókok, a fiókok paklijai, barátok és jelölések,
+  kihívások, játékszobák. Sima HTTP; interneten az Nginx Proxy Manager (NPM) adja elé a HTTPS-t, így a 443-as
+  porton bárhonnan elérhető. Ugyanez a program egy külön porton (**5555**) adja a webes **vezérlőpultot** – az csak
+  a szerver gépéről érhető el (`127.0.0.1`), máshonnan SSH-alagúttal vagy Tailscale-lel; a nyilvános porton nincs
+  semmilyen admin-funkció.
+- **Játékoldal / frontend** (`mana-chess-frontend/`, 4545-ös port): csak a játékot (`mana-chess.html`) adja a
   böngészőknek. `--backend` (vagy a `MANA_BACKEND` környezeti változó) alapértelmezett backendet ír a lapba;
-  ha nincs megadva és a lap http-n jött, a játék ugyanazon a gépen a 8787-es portot próbálja.
+  ha nincs megadva és a lap http-n jött, a játék ugyanazon a gépen az 5454-es portot próbálja.
+
+Szerverre Dockerrel: egy `docker-compose.yml` és `docker compose up -d` (lásd a backend-repó `DEPLOY.md`-jét).
 
 **A játékban** (főmenü → *Online*): 1. a backend címe (`ip:port` a helyi hálózaton, `https://…` interneten);
 2. *Belépés*, *Regisztráció*, vagy *Vendégként* (LAN mód, fiók nélkül); 3. a lobbi:
 
-- *Új játszma*: pakli (bejelentkezve a fiók paklijai, vendégként a böngészőéi), szín, körvég-mód, *Szoba nyitása*.
+- *Új játszma*: saját pakli (bejelentkezve a fiók paklijai, vendégként a böngészőéi) vagy *Spell-toborzás*, szín,
+  körvég-mód, *Szoba nyitása*. A listában a toborzásos szobák „toborzás” jelzést kapnak.
 - *Játszmák*: beérkezett kihívások (elfogadás / elutasítás, 5 percig érvényes), folytatható játszmák (fiókkal bármelyik
   eszközről), nyitott szobák (a vendégeké „vendég” jelzéssel), belépés négybetűs kóddal.
 - *Barátok*: keresés név szerint, jelölés, elfogadás / elutasítás / visszavonás, a barátok jelenléte (online, játszik,
-  nincs bent) és *Kihívás* – ha a barát elfogadja, mindkettőjüknek azonnal indul a játszma. Fiók: jelszócsere,
-  kijelentkezés, adminnak link a vezérlőpultra. A bejelentkezés (kérésre) megmarad az eszközön.
+  nincs bent) és *Kihívás* (saját paklival vagy toborzással) – ha a barát elfogadja, mindkettőjüknek azonnal indul a
+  játszma. Fiók: jelszócsere, kijelentkezés; adminnak emlékeztető, hol a vezérlőpult. A bejelentkezés (kérésre)
+  megmarad az eszközön.
 - A pakliépítő bejelentkezve a fiókba ment; a böngészőben lévő paklik egy gombbal feltölthetők.
 
-**Vezérlőpult** (`/admin`, csak adminisztrátornak): első indításkor a szerver ablakában kiírt *beállítókóddal* jön
+**Vezérlőpult** (külön port, alapból 5555, csak a szerver gépéről; csak adminisztrátori fiókkal lehet belépni):
+első indításkor a szerver ablakában kiírt *beállítókóddal* jön
 létre az első admin (elfelejtett jelszóhoz: `--setup`). Regisztráció: zárva / jóváhagyással / nyitott (automatikus
 elfogadás); kézi fióklétrehozás (azonnal használható), jóváhagyás, törlés (a barátkapcsolatokkal, kihívásokkal és
 szobákkal együtt), új jelszó, admin jog, kijelentkeztetés, vendégjáték be/ki, zárolt fiókok és kitiltott címek,
@@ -326,7 +341,8 @@ lehet belépni); egy címről 10 hiba → a cím 10 percre kitiltva a belépésb
 
 **Biztonság:** jelszó sózott scrypt-tel, munkamenet-token 32 bájt véletlen (csak a hash-e tárolva, 30 nap
 tétlenség után lejár), időzítés-független összehasonlítás, ismeretlen névre is ugyanannyi munka, kérés- és
-regisztráció-korlát címenként, a vezérlőpult szigorú CSP-vel és keretezés-tiltással. Az adatok egy JSON-fájlban
+regisztráció-korlát címenként, a vezérlőpult külön, csak helyben figyelő porton, szigorú CSP-vel, CORS nélkül és
+keretezés-tiltással. Az adatok egy JSON-fájlban
 (`data/mana-chess.json`), atomikus írással. A böngésző https-oldalról nem érhet el http-s szervert – interneten
 ezért a backend is az NPM-en át, https-sel érhető el; a claude.ai-os artifactból is csak https-es backend érhető el.
 
@@ -373,6 +389,9 @@ ugyanarra a játszmára vezet –, így a szervernek és a böngészőknek csak 
   munkamenetek és jelszócsere, szerveres paklik, barátok és jelenlét, kihívásból induló játszma, lejárat, vendégek
   tiltása, vezérlőpult-műveletek (az utolsó admin védelme, törlés mindenestül), az adatfájl újraindítás után,
   a kliens-IP proxy mögött, és ugyanez valódi HTTP-n; a frontend-szerver.
+- **Spell-toborzás:** az asztal (32 különböző lap, legalább 8 olcsó), a választások sorrendje, a költségkorlát, a
+  hibás és soron kívüli választás elutasítása, az AI választásai (mindig szabályos, kijátszható kezdő kéz), online
+  szobában és kihívásban a szerveren át (valódi HTTP-n is), valamint a visszavágó új toborzása.
 - **AI:** ha a királyt csak egy spell mentheti meg, az AI akkor is megtalálja, ha a mentő célpont a tábla túlsó végén
   van (korábban ilyenkor nem talált akciót, és a játék megállt).
 
@@ -396,3 +415,9 @@ játékát tükrözi – a részleteket és a korlátokat lásd a jelentés vég
   Mana-armageddon) ritkán vagy egyáltalán nem.
 - Háromszori ismétlés miatti döntetlen nincs (a spellek miatt az „azonos állás” nehezen definiálható); az 50 lépéses
   szabály és a megegyezéses döntetlen elérhető.
+
+## Licenc
+
+[MIT-licenc](LICENSE), © 2026 piguuccc-ops. A szoftvert „ahogy van” (as is) adjuk, mindenféle garancia nélkül; a
+szerző nem felel semmilyen kárért, igényért vagy más felelősségért, amely a szoftverből vagy a használatából ered.
+A játékban is olvasható: Szabályok → Alapszabályok → Licenc.

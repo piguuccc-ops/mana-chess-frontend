@@ -10,6 +10,9 @@ Everything is drawn in pixel art made in code. The game's own text is in Hungari
   - local 1v1 on one screen;
   - a simple AI opponent;
   - online play through the [backend](https://github.com/piguuccc-ops/mana-chess-backend).
+- **Two ways to get a deck**, in every mode: your own saved decks, or **Spell-toborzás** (spell draft) –
+  32 random, different spells on an 8 × 4 table, and the players take one each in turn until both have 6.
+  The order of the picks is the deck's order, so the first three are the opening hand.
 - **Online with an account:**
   - decks stored on the server;
   - friends, and who is online;
@@ -40,7 +43,7 @@ It holds two things:
 With Docker:
 
 ```bash
-docker run -d --name mana-chess-frontend -p 8080:8080 \
+docker run -d --name mana-chess-frontend -p 4545:4545 \
   -e MANA_BACKEND=https://sakk-api.example.com \
   --read-only --cap-drop ALL --security-opt no-new-privileges:true \
   ghcr.io/piguuccc-ops/mana-chess-frontend:latest
@@ -56,12 +59,12 @@ Without Docker (Node.js 18 or newer):
 ```bash
 npm install
 npm run build          # dist/mana-chess.html + dist/frontend.mjs
-npm start              # http://localhost:8080
+npm start              # http://localhost:4545
 ```
 
 | Command line | Environment | Default | Meaning |
 |---|---|---|---|
-| `--port 8081` | `PORT` | `8080` | Port to listen on |
+| `--port 4546` | `PORT` | `4545` | Port to listen on |
 | `--host 127.0.0.1` | `HOST` | all interfaces | Address to listen on |
 | `--backend https://…` | `MANA_BACKEND` | – | The backend the game offers by default |
 | `--game file.html` | | `mana-chess.html` next to `frontend.mjs` | Another build of the game |
@@ -70,7 +73,7 @@ The game finds its backend in this order:
 1. the address the player signed in to last time;
 2. the last address used;
 3. `MANA_BACKEND`;
-4. when the page came over plain http, port 8787 on the same host.
+4. when the page came over plain http, port 5454 on the same host.
 
 The player can always type another one.
 
@@ -117,3 +120,9 @@ GitHub Actions builds `ghcr.io/piguuccc-ops/mana-chess-frontend` for `linux/amd6
   `DOCKERHUB_TOKEN`.
 - **Weekly rebuild:** the image is rebuilt every week.
 - **Release files:** a `v*` tag attaches `mana-chess.html` and a zip of the page server to a GitHub release.
+
+## License
+
+[MIT](LICENSE) © 2026 piguuccc-ops. The software is provided "as is", without warranty of any kind, and the
+author is not liable for any claim, damage or other liability arising from it or its use. The full text is in
+[LICENSE](LICENSE).

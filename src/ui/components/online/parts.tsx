@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { DeckDef } from '../../../engine';
 import { PASSWORD_MIN, type ColorChoice, type Presence } from '../../../net/protocol';
+import { DeckModeChoices } from '../DeckModeChoices';
 import { Icon, SpellIcon } from '../pixel';
 
 /** Dialogs go to the app's root, above every panel (no card's scrolling or clipping applies). */
@@ -93,14 +94,17 @@ export function TurnChoices({ auto, onChange }: { auto: boolean; onChange: (auto
 
 /** Challenging a friend: colour, turn mode, and the deck chosen in the lobby. */
 export function ChallengeDialog({
-  friend, deck, color, autoEndTurn, onColor, onAuto, onSend, onClose,
+  friend, deck, color, autoEndTurn, draft, onColor, onAuto, onDraft, onSend, onClose,
 }: {
   friend: string;
   deck: DeckDef | null;
   color: ColorChoice;
   autoEndTurn: boolean;
+  /** Spell-toborzás instead of the chosen deck. */
+  draft: boolean;
   onColor: (c: ColorChoice) => void;
   onAuto: (a: boolean) => void;
+  onDraft: (d: boolean) => void;
   onSend: () => Promise<string | null>;
   onClose: () => void;
 }) {
@@ -120,12 +124,18 @@ export function ChallengeDialog({
         <ColorChoices value={color} onChange={onColor} />
         <span className="field-label">Kör vége</span>
         <TurnChoices auto={autoEndTurn} onChange={onAuto} />
-        <div className="challenge-deck">
-          <span className="field-label">A paklid</span>
-          <b>{deck ? deck.name : 'Véletlen pakli'}</b>
-          <DeckStrip deck={deck} />
-          <small className="hint">A paklit a Játék oldalon, a pakliválasztóban cserélheted.</small>
-        </div>
+        <span className="field-label">Paklik</span>
+        <DeckModeChoices draft={draft} onChange={onDraft} />
+        {draft ? (
+          <p className="hint">Spell-toborzás: a játszma elején 32 véletlen spellből felváltva választotok, amíg mindkettőtöknek 6 lesz.</p>
+        ) : (
+          <div className="challenge-deck">
+            <span className="field-label">A paklid</span>
+            <b>{deck ? deck.name : 'Véletlen pakli'}</b>
+            <DeckStrip deck={deck} />
+            <small className="hint">A paklit a Játék oldalon, a pakliválasztóban cserélheted.</small>
+          </div>
+        )}
         <p className="hint">{friend} 5 percig fogadhatja el – ha elfogadja, azonnal indul a játszma.</p>
         {error && (
           <p className="msg msg-error" role="alert">

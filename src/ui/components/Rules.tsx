@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { MANA, REMOVED_SPELLS, SKIPPED_PROPOSALS, SPELL_LIST } from '../../engine';
+import { DECK_SIZE, DRAFT_COLUMNS, DRAFT_POOL_SIZE, DRAFT_ROWS, MANA, REMOVED_SPELLS, SKIPPED_PROPOSALS, SPELL_LIST } from '../../engine';
 import type { SpellCategory, SpellId } from '../../engine';
 import { sfx } from '../audio/sound';
 import { costText } from '../format';
+import { COPYRIGHT, LICENSE_TEXT, THIRD_PARTY } from '../license';
 import { Icon, SpellIcon } from './pixel';
 import { SpellInspector } from './SpellInspector';
 
@@ -77,6 +78,13 @@ export function Rules({ onBack, reduced }: { onBack: () => void; reduced: boolea
                   kijátszás), akkor amikor a pakli körbefordul és újra a kezedbe kerül, felébredve – lila kerettel, erősebb hatással –
                   játszhatod ki. A felébredt kijátszás után újra töltődik.
                 </p>
+                <h2 className="codex-h">Spell-toborzás</h2>
+                <p>
+                  Játékmód saját paklik helyett (Csatába! → Paklik, és online szobában vagy kihívásban is): {DRAFT_POOL_SIZE} véletlen, különböző
+                  spell kerül az asztalra ({DRAFT_COLUMNS} × {DRAFT_ROWS}). Felváltva választotok egyet-egyet – Világos kezd –, amíg mindkettőtöknek{' '}
+                  {DECK_SIZE} lesz. A választások sorrendje a pakli sorrendje: az első három a kezdő kéz. Itt is legfeljebb egy 6 és egy 5
+                  manás spell lehet egy pakliban.
+                </p>
               </section>
               <section>
                 <h2 className="codex-h">A kör menete</h2>
@@ -99,6 +107,25 @@ export function Rules({ onBack, reduced }: { onBack: () => void; reduced: boolea
                     </li>
                   ))}
                 </ul>
+                <h2 className="codex-h" id="licenc">
+                  Licenc
+                </h2>
+                <p>
+                  Mana Chess {COPYRIGHT}, MIT-licenccel: szabadon használható, másolható, módosítható és továbbadható, ha a szerzői
+                  jogi megjegyzés és a licenc szövege megmarad.
+                </p>
+                <p>
+                  <b>
+                    A játékot és a szervereit „ahogy van” (as is) adjuk, mindenféle garancia nélkül. A szerző nem felel semmilyen
+                    kárért, igényért vagy más felelősségért, amely a játékból, a szerverekből vagy a használatukból ered.
+                  </b>
+                </p>
+                <details className="codex-license">
+                  <summary>A licenc teljes szövege (angolul – ez az irányadó)</summary>
+                  {/* the lines of each paragraph flow together (the file keeps them at 80 columns) */}
+                  <pre>{LICENSE_TEXT.replace(/([^\n])\n(?=[^\n])/g, '$1 ')}</pre>
+                </details>
+                <p className="muted">Felhasznált külső kód: {THIRD_PARTY}</p>
               </section>
             </div>
           )}

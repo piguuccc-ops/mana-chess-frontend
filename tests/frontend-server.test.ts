@@ -5,7 +5,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { contentPolicy, startFrontend, withBackend } from '../server/frontend';
+import { BACKEND_PORT, contentPolicy, FRONTEND_PORT, startFrontend, withBackend } from '../server/frontend';
+import { ADMIN_PORT, DEFAULT_PORT } from '../src/net/protocol';
 
 describe('the frontend server', () => {
   it('serves only the page, with the default backend filled in', async () => {
@@ -46,5 +47,14 @@ describe('the frontend server', () => {
       fe.server.close();
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the ports', () => {
+  it('game page 4545, backend 5454, control panel 5555 – and the page server knows the backend\'s', () => {
+    expect(FRONTEND_PORT).toBe(4545);
+    expect(DEFAULT_PORT).toBe(5454);
+    expect(ADMIN_PORT).toBe(5555);
+    expect(BACKEND_PORT).toBe(DEFAULT_PORT);
   });
 });

@@ -2,6 +2,8 @@
   "name": "mana-chess-frontend",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
+  "author": "piguuccc-ops",
   "description": "Mana Chess – chess with a Clash Royale-style mana and spell system: the game and the server that hands it out",
   "type": "module",
   "engines": {

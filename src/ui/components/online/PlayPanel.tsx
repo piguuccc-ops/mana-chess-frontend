@@ -8,10 +8,11 @@ import {
 } from '../../../net/client';
 import { BUILD_ID, type ChallengeView, type RoomState, type RoomSummary, type Seat, type ServerInfo } from '../../../net/protocol';
 import { sfx } from '../../audio/sound';
-import { gameFromRoom, gameFromStart, other, type OnlineGame } from '../../netSync';
+import { draftFromEvent, draftFromRoom, gameFromRoom, gameFromStart, other, type OnlineDraft, type OnlineGame } from '../../netSync';
 import type { AccountState } from '../../online/useOnline';
 import { resolveDeck, type Prefs } from '../../storage';
 import { DeckCarousel } from '../DeckCarousel';
+import { DeckModeChoices } from '../DeckModeChoices';
 import { Icon } from '../pixel';
 import { COLOR_WORD, ColorChoices, theirColor, TurnChoices } from './parts';
 
@@ -60,12 +61,16 @@ interface Props {
   prefs: Prefs;
   onPrefs: (p: Prefs) => void;
   onGame: (g: OnlineGame) => void;
+  /** A Spell-toborzás room's draft has begun. */
+  onDraft: (d: OnlineDraft) => void;
   refresh: () => Promise<void>;
 }
 
-export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPrefs, onGame, refresh }: Props) {
+export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPrefs, onGame, onDraft, refresh }: Props) {
   const onGameRef = useRef(onGame);
   onGameRef.current = onGame;
+  const onDraftRef = useRef(onDraft);
+  onDraftRef.current = onDraft;
   const [rooms, setRooms] = useState<RoomSummary[] | null>(null);
   const [seats, setSeats] = useState<SavedSeat[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -96,6 +101,16 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
       handedOver.current = true;
       rememberSeat({ server: g.session.server, ...g.session.seat, opponent: g.setup.names[g.me === 'w' ? 'b' : 'w'], at: Date.now() });
       onGameRef.current(g);
+    },
+    [closeWaiting],
+  );
+
+  const handOverDraft = useCallback(
+    (d: OnlineDraft) => {
+      if (waitingRef.current && waitingRef.current.state.code !== d.code) closeWaiting();
+      handedOver.current = true;
+      rememberSeat({ server: d.session.server, ...d.session.seat, opponent: d.names[d.me === 'w' ? 'b' : 'w'], at: Date.now() });
+      onDraftRef.current(d);
     },
     [closeWaiting],
   );
@@ -147,6 +162,9 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
       if (e.type === 'start') {
         sfx('open');
         handOver(gameFromStart({ session, code: state.code, role: state.role }, e));
+      } else if (e.type === 'draft') {
+        sfx('open');
+        handOverDraft(draftFromEvent({ session, code: state.code, role: state.role }, e));
       } else if (e.type === 'closed') {
         session.stop();
         forgetSeat(session.server, state.code);
@@ -154,7 +172,7 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
         setError(e.reason, 'setup');
       }
     });
-  }, [waiting, handOver]);
+  }, [waiting, handOver, handOverDraft]);
 
   // leaving the lobby while waiting closes the room
   useEffect(
@@ -189,6 +207,16 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
       setWaiting({ session, state });
       return;
     }
+    if (state.draft) {
+      const d = draftFromRoom(session, state);
+      if (typeof d === 'string') {
+        session.stop();
+        setError(d, at);
+        return;
+      }
+      handOverDraft(d);
+      return;
+    }
     const g = gameFromRoom(session, state);
     if (typeof g === 'string') {
       session.stop();
@@ -201,7 +229,7 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
   const create = () =>
     run('create', async () => {
       const deck = myDeck();
-      const r = await createRoom(origin, { name: myName(), deck: deck.spells, deckName: deck.name, color: prefs.onlineColor, autoEndTurn: prefs.autoEndTurn, auth });
+      const r = await createRoom(origin, { name: myName(), deck: deck.spells, deckName: deck.name, color: prefs.onlineColor, autoEndTurn: prefs.autoEndTurn, draft: prefs.onlineDraft, auth });
       if (!r.ok) return setError(r.error, 'setup');
       open(r.seat, r.state, 'setup');
       void refresh();
@@ -299,7 +327,8 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
             A szoba ott van a <b>Nyitott szobák</b> listájában ezen a szerveren; a barátod a kóddal is beléphet.
           </p>
           <p className="hint">
-            Színed: {COLOR_WORD[prefs.onlineColor]} · Kör vége: {prefs.autoEndTurn ? 'automatikus' : 'kézi'} · Pakli: {myDeckName(decks, prefs.onlineDeckId)}
+            Színed: {COLOR_WORD[prefs.onlineColor]} · Kör vége: {prefs.autoEndTurn ? 'automatikus' : 'kézi'} · Pakli:{' '}
+            {waiting.state.draftMode ? 'spell-toborzás' : myDeckName(decks, prefs.onlineDeckId)}
           </p>
           <button type="button" className="btn btn-dark" id="close-room" onClick={() => { sfx('back'); closeWaiting(); }}>
             <Icon name="close" scale={1} /> Szoba bezárása
@@ -307,7 +336,16 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
         </div>
       ) : (
         <>
-          <DeckCarousel side={deckSide} label={account ? 'A paklid (fiók)' : 'A paklid (böngésző)'} value={prefs.onlineDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, onlineDeckId: id })} />
+          <span className="field-label">Paklik</span>
+          <DeckModeChoices draft={prefs.onlineDraft} onChange={(d) => onPrefs({ ...prefs, onlineDraft: d })} />
+          {prefs.onlineDraft ? (
+            <p className="hint">
+              Spell-toborzás: amikor az ellenfél belép, 32 véletlen spell kerül az asztalra, és felváltva választotok, amíg mindkettőtöknek 6
+              lesz. Világos kezd.
+            </p>
+          ) : (
+            <DeckCarousel side={deckSide} label={account ? 'A paklid (fiók)' : 'A paklid (böngésző)'} value={prefs.onlineDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, onlineDeckId: id })} />
+          )}
           <span className="field-label">A színed</span>
           <ColorChoices value={prefs.onlineColor} onChange={(c) => onPrefs({ ...prefs, onlineColor: c })} />
           <span className="field-label">Kör vége</span>
@@ -342,7 +380,8 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
                   <span className="room-item-text">
                     <b>{c.from.name} kihív</b>
                     <small>
-                      Te: {COLOR_WORD[theirColor(c.color)]} · kör vége: {c.autoEndTurn ? 'automatikus' : 'kézi'} · még {clock(left)}
+                      Te: {COLOR_WORD[theirColor(c.color)]} · kör vége: {c.autoEndTurn ? 'automatikus' : 'kézi'}
+                      {c.draft ? ' · spell-toborzás' : ''} · még {clock(left)}
                     </small>
                   </span>
                   <span className="room-item-actions">
@@ -357,7 +396,9 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
               );
             })}
           </ul>
-          <p className="hint">Elfogadáskor a pakliválasztóban beállított pakliddal játszol.</p>
+          <p className="hint">
+            Elfogadáskor a pakliválasztóban beállított pakliddal játszol (spell-toborzásnál a paklik a játszma elején készülnek).
+          </p>
         </>
       )}
       {resumable.length > 0 && (
@@ -393,6 +434,7 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
                 <b>
                   {r.host}
                   {r.guest && <span className="guest-tag">vendég</span>}
+                  {r.draft && <span className="guest-tag draft-tag">toborzás</span>}
                 </b>
                 <small>
                   Te: {COLOR_WORD[theirColor(r.hostColor)]} · kör vége: {r.autoEndTurn ? 'automatikus' : 'kézi'} · {ago(r.age)}

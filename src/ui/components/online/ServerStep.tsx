@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { displayServer } from '../../../net/client';
+import { DEFAULT_PORT } from '../../../net/protocol';
 import type { Online } from '../../online/useOnline';
 import { forgetServer, recentServers } from '../../online/useOnline';
 import { Icon } from '../pixel';
@@ -25,7 +26,7 @@ export function ServerStep({ online, initial, onAddress }: { online: Online; ini
         <Icon name="globe" scale={2} /> Kapcsolódás a szerverhez
       </h2>
       <p className="online-lead">
-        Add meg a Mana Chess <b>backend</b> szerver címét. A helyi hálózaton ez <b>ip:port</b> (például 192.168.1.23:8787), interneten
+        Add meg a Mana Chess <b>backend</b> szerver címét. A helyi hálózaton ez <b>ip:port</b> (például 192.168.1.23:{DEFAULT_PORT}), interneten
         a szerver <b>https://</b> címe.
       </p>
       <form
@@ -40,7 +41,7 @@ export function ServerStep({ online, initial, onAddress }: { online: Online; ini
           <input
             id="server-address"
             value={address}
-            placeholder="192.168.1.23:8787 vagy https://sakk.pelda.hu"
+            placeholder={`192.168.1.23:${DEFAULT_PORT} vagy https://sakk.pelda.hu`}
             aria-label="A szerver címe"
             autoComplete="url"
             autoCapitalize="off"
@@ -90,7 +91,7 @@ export function ServerStep({ online, initial, onAddress }: { online: Online; ini
         <ul className="online-bullets">
           <li>
             <b>Helyi hálózat (LAN):</b> valamelyikőtök gépén fusson a backend (<b>mana-chess-backend</b> mappa → <b>Start.bat</b>). Az ablaka
-            kiírja a címet, pl. <b>192.168.1.23:8787</b> – a többiek ezt írják be.
+            kiírja a címet, pl. <b>192.168.1.23:{DEFAULT_PORT}</b> – a többiek ezt írják be.
           </li>
           <li>
             <b>Interneten:</b> a szerver gazdája adja meg a https-es címet (pl. <b>https://sakk.pelda.hu</b>).

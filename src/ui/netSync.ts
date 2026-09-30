@@ -9,8 +9,8 @@
 //  • Anything unexpected (a gap, an illegal step, a position that hashes differently) fetches the
 //    whole game again and replays it. The server is always right.
 // ─────────────────────────────────────────────────────────────────────────────
-import { applyAction, opposite, type DeckDef } from '../engine';
-import type { Action, Color, GameState } from '../engine';
+import { applyAction, isValidDraft, opposite, type DeckDef } from '../engine';
+import type { Action, Color, Draft, GameState } from '../engine';
 import type { Connection, OnlineSession } from '../net/client';
 import { colorOf, replay, setupGame, stateHash, type NetEvent, type Role, type RoomState, type Setup } from '../net/protocol';
 import type { LastMove } from './history';
@@ -33,6 +33,54 @@ export interface OnlineGame {
   rematch: Role[];
   opponentOnline: boolean;
   closed: string | null;
+}
+
+/** A Spell-toborzás draft in an online room, as the draft screen holds it. */
+export interface OnlineDraft {
+  session: OnlineSession;
+  code: string;
+  role: Role;
+  /** The number of the game this draft is for. */
+  game: number;
+  me: Color;
+  names: Record<Color, string>;
+  draft: Draft;
+  /** Events up to this id are already reflected above. */
+  fromEvent: number;
+  opponentOnline: boolean;
+}
+
+/** The players' names by colour (a room keeps them by seat). */
+export function namesByColor(names: RoomState['names'], hostColor: Color): Record<Color, string> {
+  const host = names.host ?? '?';
+  const guest = names.guest ?? '?';
+  return hostColor === 'w' ? { w: host, b: guest } : { w: guest, b: host };
+}
+
+/** A room in its draft → the draft screen's data (or why it cannot be shown). */
+export function draftFromRoom(session: OnlineSession, rs: RoomState): OnlineDraft | string {
+  if (!rs.draft || !rs.hostColor) return 'Most nincs toborzás.';
+  if (!isValidDraft(rs.draft)) return 'A toborzás adatai hibásak – frissítsd az oldalt.';
+  return {
+    session,
+    code: rs.code,
+    role: rs.role,
+    game: rs.game,
+    me: colorOf(rs.role, rs.hostColor),
+    names: namesByColor(rs.names, rs.hostColor),
+    draft: rs.draft,
+    fromEvent: rs.lastEvent,
+    opponentOnline: rs.online[other(rs.role)],
+  };
+}
+
+/** A draft that has just begun (the second player sat down, or a rematch in a Spell-toborzás room). */
+export function draftFromEvent(
+  seat: { session: OnlineSession; code: string; role: Role },
+  e: Extract<NetEvent, { type: 'draft' }>,
+  opponentOnline = true,
+): OnlineDraft {
+  return { ...seat, game: e.game, me: colorOf(seat.role, e.hostColor), names: e.names, draft: e.draft, fromEvent: e.id, opponentOnline };
 }
 
 export interface NetStatus {
@@ -60,6 +108,8 @@ export interface NetHooks {
   status(s: NetStatus): void;
   /** A new game has begun in the room (a rematch). */
   nextGame(g: OnlineGame): void;
+  /** A Spell-toborzás room: the rematch begins with a new draft. */
+  nextDraft?(d: OnlineDraft): void;
   sound(name: 'open' | 'turn'): void;
 }
 
@@ -355,6 +405,13 @@ export class NetSync {
         if (e.game <= g.game || e.game <= this.nextGame) return;
         this.nextGame = e.game;
         this.hooks.nextGame(gameFromStart({ session: g.session, code: g.code, role: g.role }, e, this.st.opponentOnline));
+        return;
+      case 'draft':
+        if (e.game <= g.game || e.game <= this.nextGame) return;
+        this.nextGame = e.game;
+        this.hooks.nextDraft?.(draftFromEvent({ session: g.session, code: g.code, role: g.role }, e, this.st.opponentOnline));
+        return;
+      case 'pick':
         return;
     }
   }

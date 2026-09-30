@@ -13,6 +13,7 @@ import './ui/styles/fx.css';
 import './ui/styles/rules.css';
 import './ui/styles/inspector.css';
 import './ui/styles/online.css';
+import './ui/styles/draft.css';
 
 installTextures();
 

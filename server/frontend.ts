@@ -3,8 +3,8 @@
 // to a backend whose address the player types in (Online → server address); --backend puts a
 // default there, so players of your server need not type it.
 //
-//   node frontend.mjs                                  port 8080
-//   node frontend.mjs --port 8081
+//   node frontend.mjs                                  port 4545
+//   node frontend.mjs --port 4546
 //   node frontend.mjs --backend https://chess-api.example.com
 //   node frontend.mjs --game path/to/mana-chess.html   another build of the game
 //   node frontend.mjs --no-open                         do not open the browser
@@ -19,7 +19,9 @@ import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const FRONTEND_PORT = 8080;
+export const FRONTEND_PORT = 4545;
+/** The backend's default port (DEFAULT_PORT in src/net/protocol.ts – a test keeps them equal). */
+export const BACKEND_PORT = 5454;
 
 /** The page with a default backend address filled in (a meta tag the game reads). */
 export function withBackend(html: string, backend: string | null): string {
@@ -129,7 +131,7 @@ if (isMain) {
     return i >= 0 ? args[i + 1] : undefined;
   };
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Használat: node frontend.mjs [--port 8080] [--backend https://…] [--game mana-chess.html] [--no-open]');
+    console.log('Használat: node frontend.mjs [--port 4545] [--backend https://…] [--game mana-chess.html] [--no-open]');
     process.exit(0);
   }
   const here = dirname(fileURLToPath(import.meta.url));
@@ -150,12 +152,12 @@ if (isMain) {
           '',
           `  Ezen a gépen:        ${local}`,
           ...(container
-            ? ['  Konténerben fut: a böngészőben a szerver gépének címét nyisd meg (pl. http://192.168.1.10:8080),', '  interneten a https-es címét.']
+            ? [`  Konténerben fut: a böngészőben a szerver gépének címét nyisd meg (pl. http://192.168.1.10:${s.port}),`, '  interneten a https-es címét.']
             : urls.map((u, i) => `  ${i === 0 ? 'A helyi hálózaton:   ' : '                      '}${u}`)),
           '',
           backend
             ? `  Alapértelmezett szerver a játékban: ${backend}`
-            : '  Ha a backend ugyanezen a gépen fut (8787-es port), a játék magától megtalálja;\n  különben a játék Online részénél kell megadni a címét (ip:port vagy https://…).',
+            : `  Ha a backend ugyanezen a gépen fut (${BACKEND_PORT}-es port), a játék magától megtalálja;\n  különben a játék Online részénél kell megadni a címét (ip:port vagy https://…).`,
           existsSync(gameFile) ? `  Játékfájl: ${gameFile}` : `  FIGYELEM: nincs játékfájl: ${gameFile}`,
           container ? '  Leállítás: docker compose stop' : '  Leállítás: Ctrl+C (vagy zárd be ezt az ablakot)',
           '',

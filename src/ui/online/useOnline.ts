@@ -228,7 +228,7 @@ export function useOnline(hooks: OnlineHooks): Online {
     async (address: string, quiet = false) => {
       const origin = normalizeServer(address);
       if (!origin) {
-        setServer({ phase: 'error', origin: null, error: 'Adj meg egy címet, például 192.168.1.23:8787 vagy https://sakk.pelda.hu', hint: null });
+        setServer({ phase: 'error', origin: null, error: `Adj meg egy címet, például 192.168.1.23:${DEFAULT_PORT} vagy https://sakk.pelda.hu`, hint: null });
         return false;
       }
       const seq = ++connectSeq.current;

@@ -5,6 +5,7 @@ import { SPELL_LIST, type DeckDef } from '../../engine';
 import { sfx } from '../audio/sound';
 import type { Prefs } from '../storage';
 import { DeckCarousel } from './DeckCarousel';
+import { DeckModeChoices } from './DeckModeChoices';
 import { Icon, type IconName } from './pixel';
 import { LandscapeScene, PixelLogo } from './scenes';
 import { SettingsBody } from './Settings';
@@ -86,10 +87,18 @@ function BattleSetup({
           </button>
         </div>
         <h3 className="section-title">Paklik</h3>
-        <div className="carousels">
-          <DeckCarousel side="w" label={ai ? 'A te paklid (Világos)' : 'Világos paklija'} value={prefs.whiteDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, whiteDeckId: id })} />
-          <DeckCarousel side="b" label={ai ? 'Az AI paklija (Sötét)' : 'Sötét paklija'} value={prefs.blackDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, blackDeckId: id })} />
-        </div>
+        <DeckModeChoices draft={prefs.draft} onChange={(draft) => onPrefs({ ...prefs, draft })} />
+        {prefs.draft ? (
+          <p className="hint draft-setup-hint">
+            32 véletlen spell kerül az asztalra (8 × 4). {ai ? 'Te és az AI' : 'Ketten'} felváltva választotok egyet-egyet, amíg mindkettőtöknek 6
+            lesz – Világos kezd. A választások sorrendje a pakli sorrendje: az első három a kezdő kéz.
+          </p>
+        ) : (
+          <div className="carousels">
+            <DeckCarousel side="w" label={ai ? 'A te paklid (Világos)' : 'Világos paklija'} value={prefs.whiteDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, whiteDeckId: id })} />
+            <DeckCarousel side="b" label={ai ? 'Az AI paklija (Sötét)' : 'Sötét paklija'} value={prefs.blackDeckId} decks={decks} onChange={(id) => onPrefs({ ...prefs, blackDeckId: id })} />
+          </div>
+        )}
         <h3 className="section-title">Kör vége</h3>
         <div className="choices" role="radiogroup" aria-label="Kör vége">
           <button type="button" role="radio" aria-checked={prefs.autoEndTurn} className="choice" onClick={() => onPrefs({ ...prefs, autoEndTurn: true })}>

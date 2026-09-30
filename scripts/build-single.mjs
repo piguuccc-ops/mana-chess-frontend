@@ -2,7 +2,7 @@
 // and art inlined) – open it straight from disk, or serve it with dist/frontend.mjs.
 //
 //   npm run build
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { buildId } from './build-id.mjs';
 
 // esbuild comes from devDependencies; ESBUILD=<path to esbuild's main.js> can point elsewhere
@@ -40,6 +40,18 @@ const head = [
   '<title>Mana Chess</title>',
   `<style>${css}</style>`,
 ].join('');
+// the license rides along at the top of the page (also shown in the game: Szabályok → Licenc)
+const license = existsSync('LICENSE') ? readFileSync('LICENSE', 'utf8').replace(/\r\n/g, '\n').trim() : 'MIT License';
+const notice = [
+  'Mana Chess – https://github.com/piguuccc-ops/mana-chess-frontend',
+  '',
+  license,
+  '',
+  'Third-party code in this page: React and React DOM – MIT License,',
+  'Copyright (c) Meta Platforms, Inc. and affiliates.',
+]
+  .join('\n')
+  .replace(/--/g, '- -');
 mkdirSync('dist', { recursive: true });
-writeFileSync('dist/mana-chess.html', `<!doctype html><html lang="hu"><head>${head}</head><body><div id="root"></div>\n<script>${js}</script></body></html>`);
+writeFileSync('dist/mana-chess.html', `<!doctype html>\n<!--\n${notice}\n-->\n<html lang="hu"><head>${head}</head><body><div id="root"></div>\n<script>${js}</script></body></html>`);
 console.log(`dist/mana-chess.html – js ${(js.length / 1024).toFixed(0)} KB, css ${(css.length / 1024).toFixed(0)} KB, verzió: ${id}`);

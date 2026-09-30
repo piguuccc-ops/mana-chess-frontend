@@ -15,7 +15,7 @@ await build({
   target: ['node18'],
   legalComments: 'none',
   logLevel: 'warning',
-  banner: { js: '// Mana Chess játékoldal (frontend). Indítás: node frontend.mjs – lásd README.' },
+  banner: { js: '// Mana Chess játékoldal (frontend). MIT License, (c) 2026 piguuccc-ops – see LICENSE. Indítás: node frontend.mjs – lásd README.' },
 });
 copyFileSync('docker/healthcheck.mjs', 'dist/healthcheck.mjs');
 if (!existsSync('dist/mana-chess.html')) console.warn('Figyelem: nincs még dist/mana-chess.html – előbb: node scripts/build-single.mjs');

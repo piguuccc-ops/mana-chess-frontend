@@ -11,6 +11,8 @@ export interface Prefs {
   blackDeckId: string;
   /** The battle setup's mode (online play has its own screen). */
   mode: 'local' | 'ai';
+  /** Spell-toborzás: the decks are drafted from a table of 32 spells (instead of the chosen decks). */
+  draft: boolean;
   autoFlip: boolean;
   /** false = spells may also be cast after the normal move (turn ends with a button). */
   autoEndTurn: boolean;
@@ -21,6 +23,8 @@ export interface Prefs {
   playerName: string;
   onlineDeckId: string;
   onlineColor: 'w' | 'b' | 'random';
+  /** Online rooms and challenges with Spell-toborzás. */
+  onlineDraft: boolean;
   serverAddress: string;
 }
 
@@ -28,6 +32,7 @@ const DEFAULT_PREFS: Prefs = {
   whiteDeckId: 'preset-classic',
   blackDeckId: 'preset-blitz',
   mode: 'local',
+  draft: false,
   autoFlip: false,
   autoEndTurn: true,
   sound: { master: 0.7, sfx: 0.8, ambient: 0.35, muted: false },
@@ -35,6 +40,7 @@ const DEFAULT_PREFS: Prefs = {
   playerName: '',
   onlineDeckId: 'preset-classic',
   onlineColor: 'random',
+  onlineDraft: false,
   serverAddress: '',
 };
 
@@ -109,6 +115,8 @@ export function loadPrefs(): Prefs {
   if (!['w', 'b', 'random'].includes(p.onlineColor)) p.onlineColor = 'random';
   if (typeof p.playerName !== 'string') p.playerName = '';
   if (typeof p.serverAddress !== 'string') p.serverAddress = '';
+  p.draft = p.draft === true;
+  p.onlineDraft = p.onlineDraft === true;
   return p;
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DeckDef } from '../../../engine';
 import type { SearchHit } from '../../../net/client';
-import type { ChallengeView, FriendView, UserBrief } from '../../../net/protocol';
+import { ADMIN_PORT, type ChallengeView, type FriendView, type UserBrief } from '../../../net/protocol';
 import { sfx } from '../../audio/sound';
 import type { AccountState } from '../../online/useOnline';
 import { resolveDeck, type Prefs } from '../../storage';
@@ -14,7 +14,6 @@ import { clock, useChallengeClock } from './PlayPanel';
 
 interface Props {
   account: AccountState;
-  origin: string;
   decks: DeckDef[];
   prefs: Prefs;
   onPrefs: (p: Prefs) => void;
@@ -25,7 +24,7 @@ interface Props {
 
 const ORDER = { playing: 0, online: 1, offline: 2 } as const;
 
-export function FriendsPanel({ account, origin, decks, prefs, onPrefs, refresh, onLogout, notify }: Props) {
+export function FriendsPanel({ account, decks, prefs, onPrefs, refresh, onLogout, notify }: Props) {
   const { me, api } = account;
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -101,7 +100,7 @@ export function FriendsPanel({ account, origin, decks, prefs, onPrefs, refresh, 
     if (!challengeTo) return null;
     const deck = resolveDeck(decks, prefs.onlineDeckId);
     try {
-      const r = await api.challenge(challengeTo.id, deck.spells, deck.name, prefs.onlineColor, prefs.autoEndTurn);
+      const r = await api.challenge(challengeTo.id, deck.spells, deck.name, prefs.onlineColor, prefs.autoEndTurn, prefs.onlineDraft);
       if (!r.ok) return r.error;
       sfx('open');
       notify(`Kihívás elküldve: ${challengeTo.name}`);
@@ -251,16 +250,11 @@ export function FriendsPanel({ account, origin, decks, prefs, onPrefs, refresh, 
         <span className="friend-text">
           <b>{me.user.name}</b>
           <small>
-            {me.user.role === 'admin' ? 'adminisztrátor · ' : ''}
+            {me.user.role === 'admin' ? `adminisztrátor (vezérlőpult: a szerver gépén, ${ADMIN_PORT}-ös port) · ` : ''}
             {me.decks.length} pakli a szerveren
           </small>
         </span>
         <span className="account-actions">
-          {me.user.role === 'admin' && (
-            <a className="btn btn-sm" href={`${origin}/admin`} target="_blank" rel="noreferrer">
-              <Icon name="gear" scale={1} /> Vezérlőpult
-            </a>
-          )}
           <button type="button" className="btn btn-sm" onClick={() => setPassword(true)}>
             <Icon name="lock" scale={1} /> Jelszócsere
           </button>
@@ -276,8 +270,10 @@ export function FriendsPanel({ account, origin, decks, prefs, onPrefs, refresh, 
           deck={shownDeck}
           color={prefs.onlineColor}
           autoEndTurn={prefs.autoEndTurn}
+          draft={prefs.onlineDraft}
           onColor={(c) => onPrefs({ ...prefs, onlineColor: c })}
           onAuto={(a) => onPrefs({ ...prefs, autoEndTurn: a })}
+          onDraft={(d) => onPrefs({ ...prefs, onlineDraft: d })}
           onSend={sendChallenge}
           onClose={() => setChallengeTo(null)}
         />
