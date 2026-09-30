@@ -1,0 +1,582 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   The online screen: server address → account → lobby (new game, rooms, friends).
+   Wood-panelled like the rule book; the cards are parchment sheets. A cool mana-blue
+   glow behind it marks it as the „far away” place of the game.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.online-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(53, 105, 184, 0.2), transparent 60%),
+    radial-gradient(ellipse at 50% 40%, rgba(88, 57, 42, 0.3), transparent 70%),
+    var(--wood-950) var(--tex-wood-dark) 0 0 / calc(var(--px) * 64) calc(var(--px) * 32);
+}
+.online-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.online-head > .btn {
+  justify-self: start;
+}
+.online-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font: 400 32px/32px var(--font-display);
+}
+.online-who {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.online-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 10px 4px;
+  background: rgba(13, 9, 7, 0.6);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-700),
+    0 3px 0 rgba(0, 0, 0, 0.4);
+}
+.online-chip-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.online-chip-text b,
+.online-chip-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 24ch;
+}
+.online-chip-text b {
+  font: 700 14px/16px var(--font-body);
+  color: var(--parch-100);
+}
+.online-chip-text small {
+  font: 400 14px/14px var(--font-body);
+  color: var(--ink-3);
+}
+.online-chip.is-reconnecting .online-chip-text small,
+.online-chip.is-lost .online-chip-text small {
+  color: var(--flame);
+}
+
+.online-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--wood-600) transparent;
+}
+
+/* ── cards ── */
+.online-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 16px 16px;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.4);
+}
+.online-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: 400 26px/28px var(--font-display);
+  color: var(--ink-dark);
+}
+.online-card-sub {
+  margin-left: auto;
+  font: 400 14px/14px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.online-lead {
+  margin: 0;
+  font: 400 16px/20px var(--font-body);
+  color: var(--ink-dark);
+}
+.online-card .field-label {
+  margin: 0;
+}
+.online-card .msg {
+  margin: 0;
+}
+.online-steps {
+  display: grid;
+  justify-items: center;
+  padding: 6px 0 18px;
+}
+.online-step {
+  width: min(620px, 100%);
+  animation: panel-in-mobile 320ms var(--ease-out) both;
+}
+.online-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.online-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.online-field .hint {
+  margin: 0;
+}
+.online-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 14px/16px var(--font-body);
+  color: var(--ink-dark);
+  cursor: pointer;
+}
+.online-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brass);
+}
+.online-submit {
+  align-self: stretch;
+}
+.online-tabs {
+  flex-wrap: nowrap;
+}
+.online-tabs .tab {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 6px;
+}
+.online-howto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.online-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  font: 400 14px/18px var(--font-body);
+  color: var(--ink-dark);
+}
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.server-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.server-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 0;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.35);
+  font: 700 14px/16px var(--font-body);
+  color: var(--ink-dark);
+  text-align: left;
+  cursor: pointer;
+}
+.server-pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.server-pick:hover:not(:disabled) {
+  background: rgba(88, 57, 42, 0.26);
+}
+
+/* ── the lobby: new game · rooms · friends ── */
+.online-lobby-tabs {
+  display: none;
+}
+.online-lobby {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  padding: 2px 0 16px;
+}
+/* wide screens: the two play cards are columns of their own */
+.play-col {
+  display: contents;
+}
+.play-setup,
+.play-rooms,
+.friends-card {
+  animation: panel-in-mobile 320ms var(--ease-out) both;
+}
+.play-rooms {
+  animation-delay: 40ms;
+}
+.friends-card {
+  animation-delay: 80ms;
+}
+.room-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.room-item.is-challenge {
+  background: rgba(230, 191, 76, 0.18);
+  box-shadow: inset 0 0 0 2px rgba(183, 138, 43, 0.7);
+  animation: challenge-glow 1.8s ease-in-out infinite;
+}
+@keyframes challenge-glow {
+  50% {
+    box-shadow:
+      inset 0 0 0 2px rgba(183, 138, 43, 0.9),
+      0 0 0 3px rgba(230, 191, 76, 0.35);
+  }
+}
+.motion-reduced .room-item.is-challenge {
+  animation: none;
+}
+.guest-tag {
+  margin-left: 6px;
+  padding: 1px 5px 0;
+  background: var(--mana-dark);
+  color: var(--ice);
+  font: 400 12px/14px var(--font-body);
+  vertical-align: 1px;
+}
+
+/* the colour tiles stand on their own in the narrow new-game column: icon above the word */
+.play-setup .choices-3 .choice-sm,
+.online-dialog .choices-3 .choice-sm {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.play-setup .choices-3 .choice-sm .icon,
+.online-dialog .choices-3 .choice-sm .icon {
+  grid-row: auto;
+}
+
+/* friends */
+.friend-search {
+  flex: none;
+}
+.friend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.friend-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 5px 8px;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.35);
+}
+.friend-item.is-new {
+  background: rgba(230, 191, 76, 0.16);
+  box-shadow: inset 0 0 0 2px rgba(183, 138, 43, 0.6);
+}
+.friend-item.is-offline .friend-text b {
+  color: var(--ink-dark-2);
+}
+.search-hits .friend-item {
+  background: rgba(53, 105, 184, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(53, 105, 184, 0.35);
+}
+.friend-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.friend-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 14px/16px var(--font-body);
+}
+.friend-text small {
+  font: 400 14px/16px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.presence-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: var(--iron-400);
+  box-shadow:
+    0 0 0 2px var(--wood-950),
+    inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+.presence-dot.is-online {
+  background: var(--green-light);
+}
+.presence-dot.is-playing {
+  background: var(--flame);
+}
+.presence-dot.is-guest {
+  background: var(--mana-light);
+}
+.account-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px;
+  background: rgba(53, 105, 184, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(53, 105, 184, 0.35);
+}
+.account-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.account-actions a.btn {
+  text-decoration: none;
+}
+
+/* dialogs */
+.online-dialog {
+  align-items: stretch;
+  width: min(560px, 94vw);
+  text-align: left;
+}
+.online-dialog .dialog-title {
+  justify-content: flex-start;
+  font-size: 26px;
+  line-height: 28px;
+}
+.challenge-deck {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.35);
+}
+.challenge-deck b {
+  font: 400 18px/18px var(--font-display);
+}
+.deck-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* notes over any screen (challenges, a lost login): bottom right, or across the top on phones */
+.app-notices {
+  position: absolute;
+  z-index: 120;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100% - 32px));
+  pointer-events: none;
+}
+.app-notice {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font: 700 14px/18px var(--font-body);
+  color: var(--ink-dark);
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+  animation: notice-in 240ms var(--ease-back) both;
+}
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.app-notice.is-error {
+  color: var(--red);
+}
+/* during a game the corner holds the hand and the end-turn button: notes go under the top bar */
+.screen-game .app-notices {
+  top: 64px;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+/* the main menu's Online button: challenges and requests waiting */
+.menu-btn-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
+/* the deck builder: where a save goes */
+.save-home {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 400 14px/16px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.deck-row.is-editing {
+  box-shadow: inset 0 0 0 2px rgba(53, 105, 184, 0.6);
+}
+
+/* ── medium screens: new game and rooms share a column, friends beside them ── */
+@media (max-width: 1180px) {
+  .online-lobby {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+  .play-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+  /* a challenge or a game to continue comes first */
+  .online-lobby.has-urgent .play-rooms {
+    order: -1;
+  }
+}
+
+/* ── phones: one column, the lobby in two tabs ── */
+@media (max-width: 760px) {
+  .online-screen {
+    gap: 8px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+  .online-head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .online-head > .btn {
+    min-height: 40px;
+    padding: 4px 10px 3px;
+  }
+  .online-title {
+    gap: 8px;
+    font-size: 26px;
+    line-height: 26px;
+  }
+  .online-title .icon {
+    display: none;
+  }
+  .online-chip {
+    padding: 4px 8px 3px;
+  }
+  .online-chip-text small {
+    display: none;
+  }
+  .online-chip-text b {
+    max-width: 12ch;
+  }
+  .online-who > .btn {
+    display: none;
+  }
+  .online-card {
+    padding: 8px 10px 12px;
+    gap: 10px;
+  }
+  .online-card-title {
+    font-size: 22px;
+    line-height: 24px;
+  }
+  .online-lobby-tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: nowrap;
+    margin: 0 0 10px;
+  }
+  .online-lobby-tabs .tab {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+  .online-lobby {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .online-lobby.show-play .friends-card,
+  .online-lobby.show-friends .play-col {
+    display: none;
+  }
+  /* two answers (accept / decline) get a row of their own */
+  .room-item.is-challenge,
+  .friend-item.is-new {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .room-item.is-challenge > .room-item-actions,
+  .friend-item.is-new > .room-item-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+  .room-item.is-challenge > .room-item-actions > .btn,
+  .friend-item.is-new > .room-item-actions > .btn {
+    flex: 1 1 0;
+  }
+  .online-steps {
+    padding-top: 0;
+  }
+  .app-notices {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    bottom: auto;
+    left: 50%;
+    right: auto;
+    width: calc(100% - 20px);
+    transform: translateX(-50%);
+  }
+}
+@media (max-width: 420px) {
+  .online-tabs .tab .icon {
+    display: none;
+  }
+}

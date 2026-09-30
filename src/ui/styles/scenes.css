@@ -1,0 +1,240 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Living backgrounds – kept subtle: slow clouds, waving cloth, flickering
+   fire, drifting dust. Nothing here moves the board.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.scene {
+  --mx: 0;
+  --my: 0;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--wood-950);
+  pointer-events: none;
+  z-index: 0;
+}
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.layer {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transform: translate3d(calc(var(--mx) * var(--depth, 0) * -3px), calc(var(--my) * var(--depth, 0) * -1.5px), 0);
+  transition: transform 900ms var(--ease-out);
+}
+.layer-sprites > .layer {
+  transform: none;
+  transition: none;
+}
+.clouds {
+  bottom: auto;
+  background-repeat: repeat-x;
+  animation: clouds-drift 240s linear infinite;
+}
+.strip {
+  position: absolute;
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  animation-name: strip-play;
+  animation-timing-function: steps(var(--frames));
+  animation-iteration-count: infinite;
+}
+.window-glow {
+  position: absolute;
+  background: #fbc254;
+  animation: window-flicker 5s steps(1) infinite;
+}
+.birds {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.bird-path {
+  position: absolute;
+  left: 0;
+  width: calc(var(--k) * 14px);
+  height: calc(var(--k) * 8px);
+  animation: bird-fly 38s linear infinite;
+  opacity: 0;
+}
+.bird-path .strip {
+  position: absolute;
+}
+.torch-light {
+  position: absolute;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  background: radial-gradient(circle, rgba(255, 190, 90, 0.26) 0 18%, rgba(255, 150, 60, 0.14) 18% 42%, rgba(255, 120, 40, 0.06) 42% 70%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: torch-flicker 2.3s steps(6) infinite;
+}
+.candle-light {
+  background: radial-gradient(circle, rgba(255, 200, 110, 0.3) 0 25%, rgba(255, 160, 70, 0.12) 25% 60%, transparent 60%);
+  animation-duration: 1.7s;
+}
+.crystal-glow {
+  position: absolute;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  background: radial-gradient(circle, rgba(143, 216, 245, 0.35) 0 20%, rgba(79, 160, 224, 0.12) 20% 55%, transparent 55%);
+  mix-blend-mode: screen;
+  animation: crystal-pulse 4s ease-in-out infinite;
+}
+.dust {
+  position: absolute;
+  inset: 0;
+}
+.dust span {
+  position: absolute;
+  width: calc(var(--k) * 1px);
+  height: calc(var(--k) * 1px);
+  background: rgba(255, 236, 190, 0.55);
+  animation: dust-float 10s ease-in-out infinite;
+}
+.dust-warm span {
+  background: rgba(255, 200, 120, 0.5);
+}
+.light-shift {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 196, 120, 0.16), transparent 55%);
+  mix-blend-mode: soft-light;
+  animation: light-shift 22s ease-in-out infinite;
+}
+.light-flicker {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 160, 70, 0.05);
+  mix-blend-mode: screen;
+  animation: room-flicker 3.1s steps(5) infinite;
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(10, 6, 4, 0.55) 100%);
+}
+.vignette-strong {
+  background: radial-gradient(ellipse at 50% 42%, transparent 38%, rgba(10, 6, 4, 0.72) 100%);
+}
+.scene-dim {
+  position: absolute;
+  inset: 0;
+  background: #0b0705;
+  opacity: var(--dim, 0);
+  transition: opacity 900ms ease;
+}
+.scene.is-still .clouds,
+.scene.is-still .strip,
+.scene.is-still .bird-path,
+.scene.is-still .dust span,
+.scene.is-still .light-shift,
+.scene.is-still .light-flicker,
+.scene.is-still .torch-light,
+.scene.is-still .window-glow {
+  animation: none;
+}
+.scene.is-still .bird-path {
+  display: none;
+}
+
+/* ── Logo ─────────────────────────────────────────────────────────────── */
+
+.logo {
+  position: relative;
+  animation: logo-float 7s ease-in-out infinite;
+}
+.logo-img {
+  position: relative;
+  filter: drop-shadow(0 6px 0 rgba(10, 6, 4, 0.5));
+}
+.logo-shine {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 250, 220, 0.75) 47%, transparent 54%) 0 0 / 300% 100% no-repeat;
+  animation: logo-shine 9s ease-in-out infinite;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.logo-spark {
+  position: absolute;
+  background: #dff8ff;
+  opacity: 0;
+  animation: spark-twinkle 3.6s steps(4) infinite;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────── */
+
+@keyframes clouds-drift {
+  to {
+    background-position-x: calc(var(--cloud-w) * -1);
+  }
+}
+@keyframes strip-play {
+  to {
+    background-position-x: calc(var(--sw) * -1);
+  }
+}
+@keyframes window-flicker {
+  0%, 100% { opacity: 1; }
+  37% { opacity: 0.7; }
+  41% { opacity: 1; }
+  78% { opacity: 0.85; }
+}
+@keyframes bird-fly {
+  0% { transform: translate(-10%, 0); opacity: 0; }
+  3% { opacity: 1; }
+  50% { transform: translate(50vw, 18px); }
+  97% { opacity: 1; }
+  100% { transform: translate(110vw, -6px); opacity: 0; }
+}
+@keyframes torch-flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  20% { opacity: 0.86; transform: scale(0.97); }
+  45% { opacity: 1; transform: scale(1.02); }
+  70% { opacity: 0.9; transform: scale(0.99); }
+}
+@keyframes crystal-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@keyframes dust-float {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translate(18px, -26px); }
+  80% { opacity: 0.8; }
+  100% { transform: translate(-6px, -52px); opacity: 0; }
+}
+@keyframes light-shift {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@keyframes room-flicker {
+  0%, 100% { opacity: 1; }
+  30% { opacity: 0.6; }
+  60% { opacity: 0.9; }
+  80% { opacity: 0.7; }
+}
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes logo-shine {
+  0%, 70% { background-position: 120% 0; }
+  100% { background-position: -40% 0; }
+}
+@keyframes spark-twinkle {
+  0%, 60%, 100% { opacity: 0; transform: scale(1); }
+  70% { opacity: 1; transform: scale(1.5); }
+  80% { opacity: 0.6; transform: scale(1); }
+}

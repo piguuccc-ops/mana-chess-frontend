@@ -1,0 +1,260 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mana Chess – design tokens & base
+   One committed look: a torch-lit medieval world in pixel art. Aged wood, iron,
+   parchment and brass carry the UI; mana-blue and ember are the magic accents;
+   violet only appears inside spell effects.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: dark;
+
+  /* wood & leather */
+  --wood-950: #120c0a;
+  --wood-900: #1d140f;
+  --wood-800: #2a1b15;
+  --wood-700: #3d2a1f;
+  --wood-600: #58392a;
+  --wood-500: #77503a;
+  --wood-400: #98693f;
+  --wood-300: #bf915e;
+
+  /* parchment */
+  --parch-100: #fff4d9;
+  --parch-200: #efdcb2;
+  --parch-300: #dcbd8a;
+  --parch-400: #c49a66;
+  --parch-500: #a57b4c;
+
+  /* iron & stone */
+  --iron-900: #141216;
+  --iron-800: #211f25;
+  --iron-700: #35323b;
+  --iron-600: #524e58;
+  --iron-400: #77727d;
+  --iron-300: #a6a1aa;
+  --iron-100: #d8d4da;
+
+  /* brass & gold */
+  --bronze: #4d3413;
+  --brass: #7c5a1c;
+  --gold: #b78a2b;
+  --gold-light: #e6bf4c;
+  --gold-glint: #fff0a0;
+
+  /* magic & semantic */
+  --blood: #4a1316;
+  --red: #7d1f22;
+  --red-light: #b3322c;
+  --ember: #e05a33;
+  --flame: #fbc254;
+  --forest: #24512b;
+  --green: #3e7f3a;
+  --green-light: #71b24e;
+  --mana-dark: #23407a;
+  --mana: #3569b8;
+  --mana-light: #4fa0e0;
+  --mana-glow: #8fd8f5;
+  --ice: #dff8ff;
+  --arcane: #7b48b0;
+  --arcane-light: #b184dc;
+  --teal: #34948a;
+
+  /* ink */
+  --ink: #efdcb2;
+  --ink-2: #c9b089;
+  --ink-3: #8f7a5c;
+  --ink-dark: #2a1b15;
+  --ink-dark-2: #58392a;
+
+  /* spell categories (card accents) */
+  --cat-move: #34948a;
+  --cat-guard: #a6a1aa;
+  --cat-control: #8f63bf;
+  --cat-tactic: #4f8f45;
+  --cat-terrain: #b0834c;
+  --cat-time: #56a8c8;
+  --cat-mana: #e6bf4c;
+  --cat-doom: #c23b30;
+
+  /* pixel scale of UI art (frames, bevels) */
+  --px: 3px;
+  --font-display: 'Mana Gothic', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --font-body: 'Mana Pixel', 'Trebuchet MS', 'Segoe UI', sans-serif;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-back: cubic-bezier(0.3, 1.5, 0.5, 1);
+  --t-ui: 140ms;
+  --t-card: 260ms;
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --px: 2px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  /* no pull-to-refresh or rubber-band scrolling of the page (a refresh mid-game loses the game) */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--wood-950);
+  color: var(--ink);
+  font: 400 14px/18px var(--font-body);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  image-rendering: pixelated;
+  isolation: isolate;
+  /* touch: two quick taps (pick a piece, pick its square) must not zoom; no grey tap flash */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* a long press on the table or a button selects nothing and opens no callout */
+.game,
+.title-menu,
+.side-panel-actions {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+img.px {
+  image-rendering: pixelated;
+  display: block;
+  flex: none;
+}
+img.px-fill {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+button:disabled,
+button[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-glint);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--wood-900);
+}
+
+/* Scrollbars in wood & brass */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) var(--wood-800);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--wood-800);
+  box-shadow: inset 2px 0 0 var(--wood-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gold);
+  box-shadow: inset 2px 2px 0 var(--gold-light), inset -2px -2px 0 var(--brass);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Typography helpers ───────────────────────────────────────────────── */
+
+/* Gothic display sizes are exact multiples of the 16-px font grid (1×, 2×, 3×…). */
+.t-display-1 {
+  font: 400 16px/16px var(--font-display);
+}
+.t-display-2 {
+  font: 400 32px/32px var(--font-display);
+}
+.t-display-3 {
+  font: 400 48px/48px var(--font-display);
+}
+.t-body-2 {
+  font: 400 28px/34px var(--font-body);
+}
+.t-bold {
+  font-weight: 700;
+}
+.t-muted {
+  color: var(--ink-3);
+}
+
+/* Gold lettering with a 1-px (font-pixel) dark outline and a hard drop shadow */
+.gold-text {
+  color: var(--gold-light);
+  background: linear-gradient(180deg, var(--gold-glint) 0 30%, var(--gold-light) 30% 56%, var(--gold) 56% 76%, var(--brass) 76% 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0.0625em 0 0 var(--wood-950)) drop-shadow(-0.0625em 0 0 var(--wood-950)) drop-shadow(0 0.0625em 0 var(--wood-950))
+    drop-shadow(0 -0.0625em 0 var(--wood-950)) drop-shadow(0 0.125em 0 rgba(0, 0, 0, 0.55));
+}
+
+.engraved {
+  color: var(--parch-200);
+  text-shadow: 0 2px 0 var(--wood-950);
+}

@@ -1,0 +1,37 @@
+# A version tag (git tag v1.0.0 && git push --tags) also makes a GitHub release with the game as
+# one HTML file, and a ready-to-run zip of the page server for running without Docker.
+name: Release files
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write              # create the GitHub release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Package
+        run: |
+          mkdir -p out/mana-chess-frontend
+          cp dist/frontend.mjs dist/mana-chess.html release/Start.bat release/start.sh release/README.txt out/mana-chess-frontend/
+          chmod +x out/mana-chess-frontend/start.sh
+          (cd out && zip -r "../mana-chess-frontend-${GITHUB_REF_NAME}.zip" mana-chess-frontend)
+          cp dist/mana-chess.html mana-chess.html
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "mana-chess-frontend-${GITHUB_REF_NAME}.zip" mana-chess.html --title "$GITHUB_REF_NAME" --generate-notes

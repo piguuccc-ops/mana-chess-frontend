@@ -1,0 +1,817 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Spell inspector (full card + looping demo), the demo war table, and the quick
+   add / remove seal on the deck builder's cards.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Inspector dialog ─────────────────────────────────────────────────── */
+
+.inspector-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
+  background: rgba(8, 5, 4, 0.76);
+  animation: fade-in 180ms ease-out both;
+}
+.inspector {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1060px, 100%);
+  max-height: calc(100dvh - 24px);
+  padding: 4px 6px 6px;
+  color: var(--ink);
+  box-shadow: 0 12px 0 rgba(0, 0, 0, 0.5);
+  animation: dialog-in 260ms var(--ease-back) both;
+}
+.inspector:focus {
+  outline: none;
+}
+
+.inspector-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'gem title actions close';
+  align-items: center;
+  gap: 10px 14px;
+  padding: 2px 2px 12px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 4px 0 rgba(152, 105, 63, 0.18);
+}
+.inspector-cost {
+  grid-area: gem;
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
+}
+.inspector-cost b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-top: 3px;
+  font: 400 32px/32px var(--font-display);
+  color: #fff;
+  text-shadow:
+    2px 0 0 var(--mana-dark),
+    -2px 0 0 var(--mana-dark),
+    0 2px 0 var(--mana-dark),
+    0 -2px 0 var(--mana-dark);
+}
+.inspector-heading {
+  grid-area: title;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: inspector-title 260ms var(--ease-out) both;
+}
+.inspector-name {
+  margin: 0;
+  font: 400 32px/34px var(--font-display);
+  overflow-wrap: anywhere;
+}
+.inspector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font: 700 14px/14px var(--font-body);
+  color: var(--parch-200);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.inspector-meta .stamp-tag {
+  margin-left: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.inspector-no {
+  color: var(--ink-3);
+}
+.inspector-no::before {
+  content: '·';
+  margin-right: 8px;
+}
+.inspector-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 16px;
+}
+.inspector-close {
+  grid-area: close;
+  align-self: start;
+}
+
+.inspector-body {
+  display: grid;
+  grid-template-columns: minmax(250px, 340px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+  padding: 12px 0;
+  overflow: auto;
+}
+
+/* the card page */
+.inspector-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 10px 14px 14px;
+  overflow-y: auto;
+  scrollbar-color: var(--parch-500) transparent;
+  animation: page-turn 300ms var(--ease-out);
+}
+.inspector-art {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 144px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--cat) 55%, #140d0b) 0 20%,
+      color-mix(in srgb, var(--cat) 36%, #140d0b) 20% 36%,
+      color-mix(in srgb, var(--cat) 22%, #140d0b) 36% 54%,
+      color-mix(in srgb, var(--cat) 12%, #0d0907) 54% 100%);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 0 0 0 4px rgba(119, 80, 58, 0.55),
+    0 3px 0 rgba(0, 0, 0, 0.3);
+}
+.inspector-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 90deg at 2px 2px, rgba(0, 0, 0, 0.28) 90deg, transparent 0) 0 0 / 4px 4px;
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 40%, #000 72%);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 40%, #000 72%);
+  pointer-events: none;
+}
+.inspector-art .spell-icon {
+  position: relative;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.45));
+  animation: art-bob 3.2s steps(8) infinite;
+}
+.inspector-desc {
+  font: 400 16px/22px var(--font-body);
+  color: var(--ink-dark);
+}
+/* „Körforgás”: the card's awakened form */
+.inspector-awake {
+  padding: 8px 10px;
+  font: 400 15px/20px var(--font-body);
+  color: var(--ink-dark);
+  background: rgba(123, 72, 176, 0.12);
+  box-shadow: inset 4px 0 0 #8a5cc7, inset 0 0 0 2px rgba(123, 72, 176, 0.35);
+}
+.inspector-awake b {
+  color: #4a2d72;
+}
+.inspector-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font: 400 16px/16px var(--font-display);
+  color: var(--ink-dark);
+}
+.inspector-h::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--ink-dark-2);
+  opacity: 0.3;
+}
+.inspector-steps {
+  margin: 0;
+  padding-left: 22px;
+  font: 400 14px/19px var(--font-body);
+  color: var(--ink-dark);
+}
+.inspector-steps li + li {
+  margin-top: 4px;
+}
+.inspector-steps li::marker {
+  color: var(--red);
+  font-weight: 700;
+}
+.inspector-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  background: rgba(88, 57, 42, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.35);
+}
+.inspector-notes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: 400 14px/18px var(--font-body);
+  color: var(--ink-dark);
+}
+.inspector-notes .icon {
+  margin-top: 1px;
+}
+.inspector-change {
+  font: 400 14px/18px var(--font-body);
+  color: var(--ink-dark-2);
+}
+
+/* the demo column */
+.inspector-demo {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 8px 10px 10px;
+}
+
+.inspector-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inspector-count {
+  min-width: 64px;
+  text-align: center;
+  font: 400 16px/16px var(--font-display);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.inspector-count b {
+  font: 400 32px/32px var(--font-display);
+  color: var(--parch-100);
+  text-shadow: 0 2px 0 var(--wood-950);
+}
+.inspector-deck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.inspector-pips {
+  display: flex;
+  gap: 4px;
+  padding: 5px 8px;
+  background: rgba(13, 9, 7, 0.55);
+  box-shadow: inset 0 0 0 2px var(--wood-950);
+}
+.inspector-pips .deck-pip {
+  width: 12px;
+  height: 18px;
+}
+.inspector-warn {
+  max-width: 260px;
+  padding: 5px 8px 4px;
+  font: 700 14px/16px var(--font-body);
+  color: var(--parch-100);
+  background: var(--red);
+  box-shadow: 0 0 0 2px var(--wood-950);
+  animation: warn-shake 320ms var(--ease-out);
+}
+
+@keyframes inspector-title {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes warn-shake {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+@keyframes art-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@media (max-width: 1000px) {
+  .inspector-head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'gem title close'
+      'actions actions actions';
+  }
+  .inspector-actions {
+    justify-content: space-between;
+  }
+}
+@media (max-width: 820px) {
+  .inspector {
+    padding: 2px 2px 4px;
+  }
+  .inspector-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inspector-demo {
+    order: -1;
+    padding: 6px 4px 8px;
+  }
+  .inspector-page {
+    overflow: visible;
+  }
+  .inspector-name {
+    font-size: 24px;
+    line-height: 26px;
+  }
+  .inspector-art {
+    display: none;
+  }
+}
+
+/* ── Demo war table ───────────────────────────────────────────────────── */
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.demo-foot {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.demo-tools {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+.demo-tools .btn.is-muted .icon {
+  opacity: 0.6;
+}
+.demo.is-small .demo-who-name {
+  display: none;
+}
+.demo-stage {
+  position: relative;
+  overflow: hidden;
+  padding: 6px 10px 10px;
+  pointer-events: none;
+  user-select: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 196, 110, 0.1), transparent 70%),
+    rgba(13, 9, 7, 0.4);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 0 0 0 4px rgba(119, 80, 58, 0.3);
+}
+.demo-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 320ms ease;
+}
+.demo-stage.is-fading .demo-screen {
+  opacity: 0;
+}
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(var(--bs) * 184);
+  max-width: 100%;
+}
+.demo-bar-top {
+  min-height: 30px;
+}
+.demo-bar-bottom {
+  min-height: calc(var(--bs) * 10 + 44px);
+  padding-top: 8px;
+}
+.demo-who {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 700 14px/14px var(--font-body);
+  color: var(--parch-200);
+  text-shadow: 0 2px 0 var(--wood-950);
+}
+.demo-bar .crystals {
+  flex: none;
+}
+.demo-bar-bottom .crystals {
+  margin-left: auto;
+}
+.demo-turn {
+  margin-left: auto;
+  padding: 5px 8px 3px;
+  font: 700 14px/14px var(--font-body);
+  box-shadow:
+    0 0 0 2px var(--wood-950),
+    0 3px 0 2px rgba(0, 0, 0, 0.35);
+  transition:
+    background 200ms,
+    color 200ms;
+}
+.demo-turn.is-w {
+  color: var(--ink-dark);
+  background: var(--parch-300);
+}
+.demo-turn.is-b {
+  color: var(--parch-100);
+  background: var(--iron-700);
+}
+
+.demo-board .board-frame {
+  box-shadow:
+    0 calc(var(--bs) * 3) 0 rgba(0, 0, 0, 0.45),
+    0 calc(var(--bs) * 6) calc(var(--bs) * 8) rgba(0, 0, 0, 0.3);
+}
+.demo .check-stamp {
+  font-size: 32px;
+  line-height: 32px;
+}
+.demo .check-stamp.is-mate {
+  font-size: 40px;
+  line-height: 40px;
+}
+
+/* the hand: small cards, the demonstrated one in full colour */
+.demo-hand {
+  --px: 2px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+.demo-hand-slot {
+  position: relative;
+  animation: card-deal 300ms var(--ease-out) backwards;
+}
+.demo-hand .card--mini .card-face {
+  width: calc(var(--bs) * 10 + 32px);
+  height: calc(var(--bs) * 10 + 32px);
+}
+.demo-hand .card--mini .card-art .spell-icon {
+  width: calc(var(--bs) * 10 + 12px);
+  height: calc(var(--bs) * 10 + 12px);
+}
+.demo-hand-slot:not([data-demo-card]) .card {
+  opacity: 0.5;
+  filter: saturate(0.55);
+}
+.demo-hand .card.is-active .card-face,
+.demo-hand .card.is-armed .card-face {
+  transform: translateY(-8px);
+  border-image-source: var(--frame-btn-gold);
+  box-shadow:
+    0 6px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 2px var(--gold-light),
+    0 0 20px -2px var(--mana-glow);
+}
+.demo-confirm {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  bottom: calc(100% + 10px);
+  white-space: nowrap;
+  animation: seal-stamp 280ms var(--ease-back) both;
+}
+
+/* hand beside the board (wide but short windows), like the game's wide layout */
+.demo.is-side .demo-screen {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    'top top'
+    'hand board';
+  align-items: start;
+  column-gap: 12px;
+}
+.demo.is-side .demo-bar-top {
+  grid-area: top;
+  width: auto;
+  justify-self: stretch;
+}
+.demo.is-side .demo-board {
+  grid-area: board;
+}
+.demo.is-side .demo-bar-bottom {
+  grid-area: hand;
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  gap: 14px;
+}
+.demo.is-side .demo-hand {
+  flex: none;
+  flex-direction: column;
+  gap: 14px;
+}
+.demo.is-side .demo-who-name {
+  display: none;
+}
+.demo.is-side .demo-bar-bottom .crystals {
+  margin-left: 0;
+}
+.demo.is-side .demo-bar-bottom .crystal-row {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 2px;
+  max-width: calc(var(--cs, 1) * 36px + 2px);
+}
+.demo.is-side .demo-confirm {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+
+/* the cast card flying to the board */
+.demo-flight {
+  position: absolute;
+  z-index: 45;
+  padding: 6px;
+  background: color-mix(in srgb, var(--cat, var(--cat-tactic)) 34%, #140d0b);
+  box-shadow:
+    0 0 0 2px var(--wood-950),
+    0 0 0 4px var(--gold-light),
+    0 0 22px 2px rgba(255, 220, 120, 0.55);
+  pointer-events: none;
+  animation: cast-fly 560ms var(--ease-out) forwards;
+}
+
+/* the pointing glove */
+.demo-pointer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.45, 0.05, 0.25, 1), ease;
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.45));
+}
+.demo-pointer.is-off {
+  opacity: 0;
+}
+.demo-pointer-hand {
+  display: block;
+  transform-origin: 40% 10%;
+}
+.demo-pointer-hand.is-press {
+  animation: demo-press 240ms var(--ease-out);
+}
+.demo-ripple {
+  position: absolute;
+  z-index: 59;
+  border: 2px solid var(--gold-glint);
+  box-shadow: 0 0 0 2px rgba(20, 13, 11, 0.5);
+  transform: translate(-50%, -50%) rotate(45deg);
+  animation: demo-ripple 420ms steps(5) forwards;
+}
+
+/* what is happening, in words */
+.demo-caption {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  font: 400 14px/18px var(--font-body);
+  color: var(--ink-dark);
+  background: var(--parch-300) var(--tex-parchment) 0 0 / calc(var(--px) * 96) calc(var(--px) * 96);
+  box-shadow:
+    inset 0 0 0 2px rgba(88, 57, 42, 0.55),
+    0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.demo-caption.is-result {
+  background-color: var(--parch-200);
+  box-shadow:
+    inset 0 0 0 2px var(--gold),
+    0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.demo-step {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding-top: 2px;
+  font: 400 16px/16px var(--font-display);
+  color: var(--parch-100);
+  background: var(--wood-600);
+  box-shadow:
+    0 0 0 2px var(--wood-950),
+    inset 0 2px 0 var(--wood-400);
+}
+.demo-result-icon {
+  flex: none;
+}
+.demo-caption-text {
+  animation: caption-in 240ms var(--ease-out) both;
+}
+
+@keyframes demo-press {
+  0% { transform: none; }
+  35% { transform: translateY(3px) scale(0.86); }
+  100% { transform: none; }
+}
+@keyframes demo-ripple {
+  0% { width: 6px; height: 6px; opacity: 1; }
+  100% { width: 34px; height: 34px; opacity: 0; }
+}
+@keyframes caption-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Quick add / remove seal on the library cards ─────────────────────── */
+
+.card-quick {
+  position: absolute;
+  z-index: 4;
+  right: -10px;
+  bottom: -10px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--wood-600);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--wood-400),
+    0 3px 0 2px rgba(0, 0, 0, 0.45);
+  transition:
+    transform var(--t-ui) var(--ease-back),
+    background var(--t-ui);
+}
+.card-quick .icon {
+  width: 24px;
+  height: 24px;
+}
+.card-quick:hover {
+  transform: translateY(-2px) scale(1.08);
+  background: var(--wood-500);
+}
+.card-quick:active {
+  transform: scale(0.92);
+}
+.card-quick.is-in {
+  background: var(--gold);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--gold-light),
+    0 3px 0 2px rgba(0, 0, 0, 0.45);
+  animation: seal-stamp 360ms var(--ease-back);
+}
+.card-quick.is-in:hover {
+  background: var(--red);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--red-light),
+    0 3px 0 2px rgba(0, 0, 0, 0.45);
+}
+.card-quick .card-quick-alt,
+.card-quick.is-in:hover .card-quick-main {
+  display: none;
+}
+.card-quick.is-in:hover .card-quick-alt {
+  display: block;
+}
+.card-quick.is-blocked {
+  filter: grayscale(0.8) brightness(0.72);
+}
+
+/* ── Rule book: spell rows open the inspector ─────────────────────────── */
+
+.codex-page p.codex-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: var(--ink-dark-2);
+}
+.codex-table.is-clickable tbody tr {
+  cursor: pointer;
+}
+.nm-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  text-align: left;
+}
+.nm-btn:hover > span,
+.nm-btn:focus-visible > span {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .inspector-pips {
+    display: none;
+  }
+  .inspector-head {
+    column-gap: 10px;
+  }
+  .inspector-actions {
+    gap: 8px;
+  }
+  .inspector-count {
+    min-width: 48px;
+  }
+}
+
+/* short windows: tighter spacing so the demo board can stay larger */
+@media (max-height: 820px) and (min-width: 821px) {
+  .inspector-head {
+    padding-bottom: 8px;
+  }
+  .inspector-body {
+    padding: 8px 0;
+    gap: 10px;
+  }
+  .inspector-demo {
+    padding: 4px 8px 6px;
+  }
+  .inspector-art {
+    height: 112px;
+  }
+  .demo-stage {
+    padding: 4px 8px 6px;
+  }
+  .demo-caption {
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector-art .spell-icon,
+  .demo-hand-slot,
+  .demo-caption-text {
+    animation: none;
+  }
+}
+.motion-reduced .inspector-art .spell-icon,
+.motion-reduced .demo-hand-slot,
+.motion-reduced .demo-caption-text {
+  animation: none;
+}
+
+/* the promotion choice inside the demo table: the game's dialog, made to fit the small board */
+.demo-board > .overlay {
+  padding: 6px;
+}
+.demo-board .promo-dialog {
+  width: auto;
+  max-width: 100%;
+  gap: 6px;
+  padding: 8px 10px 10px;
+}
+.demo-board .promo-dialog .dialog-title {
+  font-size: 18px;
+  line-height: 18px;
+}
+.demo-board .promo-dialog p {
+  display: none;
+}
+.demo-board .promo-options {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.demo-board .promo-option {
+  padding: 4px 6px 3px;
+  font-size: 13px;
+  line-height: 13px;
+}
+.demo-board .promo-option img {
+  width: calc(var(--bs) * 16);
+  height: auto;
+}
+.promo-option.is-hot {
+  transform: translateY(-4px);
+  border-image-source: var(--frame-btn-gold);
+  filter: brightness(1.1);
+}
+/* on a small demo board the piece pictures alone make the choice */
+.demo.is-small .demo-board .promo-option span {
+  display: none;
+}
+.demo.is-small .demo-board .promo-dialog .dialog-title {
+  font-size: 14px;
+  line-height: 14px;
+}

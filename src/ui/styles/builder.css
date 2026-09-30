@@ -1,0 +1,689 @@
+/* ── Deck builder: a spell library on the war-room table + the spellbook ── */
+
+.builder-screen {
+  position: absolute;
+  inset: 0;
+  padding: max(14px, env(safe-area-inset-top, 0px)) 16px max(14px, env(safe-area-inset-bottom, 0px));
+}
+.builder {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 8px 8px;
+  box-shadow: 0 12px 0 rgba(0, 0, 0, 0.45);
+}
+.builder-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.builder-head > .btn {
+  justify-self: start;
+}
+.builder-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.deck-meter {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background: rgba(13, 9, 7, 0.55);
+  box-shadow: inset 0 0 0 2px var(--wood-950);
+}
+.deck-pip {
+  width: 14px;
+  height: 20px;
+  background: var(--wood-700);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 3px 3px 0 0 rgba(255, 255, 255, 0.05);
+  transition: background var(--t-ui);
+}
+.deck-pip .spell-icon {
+  display: none;
+}
+.deck-pip.is-full {
+  background: var(--gold);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--gold-light);
+  animation: pip-in 260ms var(--ease-back);
+}
+.deck-meter b {
+  margin-left: 6px;
+  font: 400 32px/32px var(--font-display);
+  color: var(--parch-100);
+  text-shadow: 0 2px 0 var(--wood-950);
+  font-variant-numeric: tabular-nums;
+}
+.builder-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 18px;
+}
+
+/* library */
+.library {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.library-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tab[data-cat='Mozgás'] { --cat: var(--cat-move); }
+.tab[data-cat='Védelem'] { --cat: var(--cat-guard); }
+.tab[data-cat='Irányítás'] { --cat: var(--cat-control); }
+.tab[data-cat='Taktika'] { --cat: var(--cat-tactic); }
+.tab[data-cat='Terep'] { --cat: var(--cat-terrain); }
+.tab[data-cat='Idő'] { --cat: var(--cat-time); }
+.tab[data-cat='Mana'] { --cat: var(--cat-mana); }
+.tab[data-cat='Pusztítás'] { --cat: var(--cat-doom); }
+.library-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.library-row .search {
+  flex: 1;
+  min-width: 220px;
+}
+.cost-filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cost-gem-btn {
+  min-width: 38px;
+  height: 36px;
+  padding: 0 6px;
+  font: 700 14px/14px var(--font-body);
+  color: var(--ink-2);
+  background: var(--wood-800);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--wood-700);
+  transition: transform var(--t-ui) var(--ease-back);
+}
+.cost-gem-btn.gem {
+  width: 34px;
+  min-width: 0;
+  padding: 2px 0 0;
+  color: #fff;
+  font: 400 16px/16px var(--font-display);
+  background: var(--mana);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  box-shadow:
+    inset 4px 4px 0 var(--mana-light),
+    inset -4px -4px 0 var(--mana-dark);
+  text-shadow: 0 2px 0 var(--mana-dark);
+}
+.cost-gem-btn:hover {
+  transform: translateY(-2px);
+}
+.cost-gem-btn.is-on {
+  color: var(--ink-dark);
+  background: var(--gold-light);
+  box-shadow:
+    inset 0 0 0 2px var(--wood-950),
+    inset 2px 2px 0 2px var(--gold-glint);
+}
+.cost-gem-btn.gem.is-on {
+  color: var(--ink-dark);
+  background: var(--gold-light);
+  box-shadow:
+    inset 4px 4px 0 var(--gold-glint),
+    inset -4px -4px 0 var(--gold);
+  text-shadow: none;
+}
+
+.card-grid {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.card-grid-page {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-content: start;
+  gap: 16px;
+  padding: 12px 12px 0;
+}
+.card-slot {
+  min-width: 0;
+  animation: card-deal 380ms var(--ease-back) both;
+  animation-delay: calc(var(--i) * 28ms);
+}
+.grid-full-note {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  padding: 5px 12px 3px;
+  background: rgba(20, 13, 11, 0.85);
+  color: var(--parch-200);
+  font: 700 14px/14px var(--font-body);
+  box-shadow: 0 0 0 2px var(--gold);
+  pointer-events: none;
+}
+.empty-note {
+  grid-column: 1 / -1;
+  justify-self: center;
+  padding: 12px 18px;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.pager-label {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 110px;
+}
+.pager-label b {
+  font: 400 32px/32px var(--font-display);
+  color: var(--parch-100);
+  text-shadow: 0 2px 0 var(--wood-950);
+  font-variant-numeric: tabular-nums;
+}
+.pager-label small {
+  font: 400 14px/14px var(--font-body);
+  color: var(--ink-2);
+}
+
+/* spellbook */
+.spellbook {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 14px;
+}
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slot {
+  --cat: var(--wood-600);
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 36px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 4px 6px 4px 4px;
+  background: rgba(88, 57, 42, 0.16);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.4);
+}
+.slot[data-cat='Mozgás'] { --cat: var(--cat-move); }
+.slot[data-cat='Védelem'] { --cat: var(--cat-guard); }
+.slot[data-cat='Irányítás'] { --cat: var(--cat-control); }
+.slot[data-cat='Taktika'] { --cat: var(--cat-tactic); }
+.slot[data-cat='Terep'] { --cat: var(--cat-terrain); }
+.slot[data-cat='Idő'] { --cat: var(--cat-time); }
+.slot[data-cat='Mana'] { --cat: var(--cat-mana); }
+.slot[data-cat='Pusztítás'] { --cat: var(--cat-doom); }
+.slot.is-full {
+  background: var(--wood-800) var(--tex-wood-dark) 0 0 / calc(var(--px) * 64) calc(var(--px) * 32);
+  box-shadow:
+    inset 4px 0 0 var(--cat),
+    inset 0 0 0 2px var(--wood-950);
+  color: var(--parch-100);
+  animation: slot-fill 320ms var(--ease-back);
+}
+.slot-no {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font: 700 14px/14px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.slot.is-full .slot-no {
+  color: var(--ink-3);
+}
+.slot.is-hand .slot-no::after {
+  content: '';
+}
+.slot-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(13, 9, 7, 0.5);
+  box-shadow: inset 0 0 0 2px var(--wood-950);
+}
+.slot-name {
+  font: 400 16px/16px var(--font-display);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-cost {
+  min-width: 24px;
+  padding: 3px 4px 1px;
+  text-align: center;
+  background: var(--mana);
+  color: #fff;
+  font: 400 16px/16px var(--font-display);
+  box-shadow: 0 0 0 2px var(--wood-950);
+}
+.slot-remove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  opacity: 0.8;
+  transition: transform var(--t-ui) var(--ease-back);
+}
+.slot-remove:hover {
+  opacity: 1;
+  transform: scale(1.15) rotate(8deg);
+}
+.slot-empty {
+  grid-column: 2 / -1;
+  font: 400 14px/14px var(--font-body);
+  color: var(--ink-dark-2);
+  opacity: 0.8;
+}
+.deck-stats {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+.curve {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 90px;
+  padding: 4px 6px;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.35);
+}
+.curve-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 16px;
+  height: 100%;
+}
+.curve-bar {
+  width: 12px;
+  background: var(--mana);
+  box-shadow:
+    inset 2px 2px 0 var(--mana-light),
+    0 0 0 2px var(--wood-950);
+  transition: height 260ms var(--ease-back);
+}
+.curve-col small {
+  font: 700 14px/14px var(--font-body);
+  color: var(--ink-dark-2);
+}
+/* 5 and 6 mana: at most one card each – a cap line marks the limit, an over-full column turns red */
+.curve-col.is-capped {
+  position: relative;
+}
+.curve-col.is-capped::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: calc(17px + 12px);
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--ink-dark-2) 0 2px, transparent 2px 4px);
+  opacity: 0.7;
+}
+.curve-col.is-over .curve-bar {
+  background: var(--red);
+  box-shadow:
+    inset 2px 2px 0 var(--red-light),
+    0 0 0 2px var(--wood-950);
+}
+.curve-col.is-over small {
+  color: var(--red);
+}
+.deck-stats-text {
+  display: grid;
+  gap: 6px;
+}
+.deck-stats-text b {
+  font: 400 16px/16px var(--font-display);
+}
+.deck-stats-text span {
+  font: 400 14px/16px var(--font-body);
+}
+.hint {
+  font: 400 14px/16px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.msg {
+  padding: 6px 8px;
+  font: 700 14px/16px var(--font-body);
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+.msg-ok {
+  color: var(--forest);
+}
+.msg-error {
+  color: var(--red);
+}
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.editor-actions .btn {
+  flex: 1 1 auto;
+}
+.deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.deck-list li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.deck-list .empty {
+  font: 400 14px/16px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.deck-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 4px 8px;
+  text-align: left;
+  color: var(--ink-dark);
+  background: rgba(88, 57, 42, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.3);
+  transition:
+    background var(--t-ui),
+    transform var(--t-ui) var(--ease-back);
+}
+.deck-row:hover {
+  background: rgba(255, 244, 217, 0.45);
+  transform: translateX(3px);
+}
+.deck-row b {
+  font: 400 16px/16px var(--font-display);
+}
+.deck-row-icons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+}
+/* the upload / delete buttons keep their size next to a long deck name */
+.deck-list li > .btn {
+  flex: none;
+}
+/* a saved deck that breaks a rule added since (e.g. one 6- and one 5-mana spell): fix before playing */
+.deck-row.is-invalid {
+  box-shadow: inset 0 0 0 2px rgba(179, 50, 44, 0.55);
+}
+.deck-row-flag {
+  padding: 2px 5px 1px;
+  font: 700 12px/12px var(--font-body);
+  color: var(--parch-100);
+  background: var(--red);
+  box-shadow: 0 0 0 1px var(--wood-950);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* the chosen card flying into the spellbook */
+.card-flight {
+  position: fixed;
+  z-index: 100;
+  aspect-ratio: 1;
+  padding: 18px;
+  background: var(--wood-800);
+  box-shadow:
+    0 0 0 3px var(--gold-light),
+    0 0 24px 2px rgba(255, 220, 120, 0.6);
+  pointer-events: none;
+  animation: card-fly 560ms cubic-bezier(0.5, 0, 0.3, 1) forwards;
+}
+
+@keyframes card-deal {
+  from { opacity: 0; transform: translateY(14px) rotate(-2deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes card-fly {
+  0% { transform: translate(0, 0) scale(1) rotate(0); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(var(--s)) rotate(-8deg); opacity: 0.2; }
+}
+@keyframes slot-fill {
+  0% { transform: scale(1.05); filter: brightness(1.8); }
+  100% { transform: none; filter: none; }
+}
+@keyframes pip-in {
+  0% { transform: scale(1.5); }
+  100% { transform: none; }
+}
+
+@media (max-width: 1100px) {
+  .builder-body {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+@media (max-width: 860px) {
+  .builder-screen {
+    overflow: auto;
+    padding: 8px;
+  }
+  .builder {
+    height: auto;
+    min-height: 100%;
+  }
+  .builder-head {
+    grid-template-columns: auto 1fr;
+  }
+  .builder-title {
+    justify-self: end;
+  }
+  .builder-title .icon {
+    display: none;
+  }
+  .deck-meter {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+  }
+  .builder-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .card-grid {
+    height: 72vh;
+    flex: none;
+  }
+  .spellbook {
+    overflow: visible;
+  }
+}
+
+/* ── Phones ───────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  /* the header meter shows the deck itself: tap it to jump to the deck */
+  .deck-pip {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+  }
+  .deck-pip .spell-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  .deck-pip.is-full {
+    background: var(--wood-800);
+    box-shadow:
+      inset 0 0 0 2px var(--wood-950),
+      inset 0 0 0 4px var(--gold);
+  }
+  .deck-meter b {
+    font-size: 24px;
+    line-height: 24px;
+  }
+}
+@media (max-width: 520px), (max-height: 560px) and (min-aspect-ratio: 5/4) {
+  .builder-screen {
+    padding: max(8px, env(safe-area-inset-top, 0px)) 6px max(8px, env(safe-area-inset-bottom, 0px));
+  }
+  .builder {
+    padding: 4px 6px 8px;
+  }
+  .deck-meter {
+    gap: 4px;
+    padding: 6px 6px;
+  }
+  .deck-pip {
+    width: 30px;
+    height: 30px;
+  }
+  /* the categories scroll sideways instead of wrapping into three rows */
+  .library-tools .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -6px;
+    padding: 4px 6px 2px;
+  }
+  .library-tools .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .library-tools .tab {
+    flex: none;
+  }
+  .cost-filter {
+    flex-wrap: wrap;
+  }
+  .cost-gem-btn {
+    min-width: 34px;
+  }
+  .library-row .search {
+    min-width: 0;
+  }
+  /* short tiles, three a row: art and name – a tap opens the whole card */
+  .card-grid-page {
+    gap: 10px;
+    padding: 10px 6px 0;
+  }
+  .card--tile .card-face {
+    aspect-ratio: 5 / 5.8;
+  }
+  .card--tile .card-art {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+  .card--tile .card-art .spell-icon {
+    width: 44%;
+  }
+  .card--tile .card-plate {
+    margin-top: 0;
+    padding: 4px 3px 3px;
+  }
+  .card--tile .card-name {
+    display: block;
+    font: 700 14px/15px var(--font-body);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card--tile .card-body {
+    display: none;
+  }
+  .card--tile .card-badges {
+    display: none;
+  }
+  /* the add button moves to the top corner: the name keeps the whole plate */
+  .card--tile .card-quick {
+    top: -8px;
+    right: -6px;
+    bottom: auto;
+    width: 32px;
+    height: 32px;
+  }
+  .card--tile .card-cost {
+    top: -9px;
+    left: -8px;
+  }
+  .card--tile .card-cost img {
+    width: 18px;
+    height: 24px;
+  }
+  .card--tile .card-cost b {
+    font-size: 16px;
+  }
+  .pager {
+    gap: 10px;
+  }
+}
+@media (max-width: 520px) {
+  .library-row .search {
+    flex-basis: 100%;
+  }
+}
+/* a phone on its side: the header in one row, the library fills the screen below it */
+@media (max-height: 560px) and (min-aspect-ratio: 5/4) {
+  .builder-head {
+    grid-template-columns: auto 1fr auto;
+  }
+  .builder-title {
+    order: 3;
+  }
+  .builder-title h1 {
+    font-size: 24px;
+    line-height: 24px;
+  }
+  .deck-meter {
+    grid-column: auto;
+    justify-self: center;
+  }
+  .card-grid {
+    height: calc(100vh - 150px);
+    min-height: 220px;
+  }
+}
+
