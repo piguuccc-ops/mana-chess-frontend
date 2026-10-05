@@ -18,7 +18,7 @@ interface Props {
   customDecks: DeckDef[];
   /** The signed-in account's decks (null: nobody is signed in). */
   serverDecks: DeckDef[] | null;
-  /** Who and where, for the „saved to” line (e.g. „Misu · Mana Chess”). */
+  /** Who and where, for the „saved to” line (e.g. „Misi · Mana Chess”). */
   accountLabel: string | null;
   /** Save a deck; resolves to an error message, or a note when it could only be kept for this visit. */
   onSave: (deck: DeckDef, home: DeckHome) => Promise<{ error?: string; note?: string }>;

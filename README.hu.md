@@ -1,8 +1,11 @@
 # Mana Chess
 
-Böngészőben futó sakk Clash Royale-szerű mana- és spell-rendszerrel: 71 varázslat, 6 lapos pakli, 3 lapos kéz és
-kártyaciklus. Helyi 1v1 (egy gépen), egyszerű AI ellenfél, és online játék saját szerveren – fiókokkal, a szerveren
-tárolt paklikkal, barátlistával és kihívásokkal, vagy fiók nélkül a helyi hálózaton (lásd [Online játék](#online-játék)).
+Böngészőben (és Android-alkalmazásként) futó sakk Clash Royale-szerű mana- és spell-rendszerrel: 71 varázslat, 6 lapos
+pakli, 3 lapos kéz és kártyaciklus. Helyi 1v1 (egy eszközön), **11 bot** saját Élő-pontszámmal és beszédes
+személyiséggel (Kende the genius, 100 – Oli the phone taker, 3000), **rangsorolt online játék** Élő-pontszámmal és
+képesség szerinti párosítással, valamint barátságos online játék saját szerveren – fiókokkal, a szerveren tárolt
+paklikkal, barátlistával és kihívásokkal, vagy fiók nélkül a helyi hálózaton (lásd [Botok](#botok),
+[Online játék](#online-játék), [Android-alkalmazás](#android-alkalmazás)).
 
 ![Játék közben: a Huszárugrás célzása](docs/screenshot.png)
 
@@ -17,6 +20,7 @@ npm run typecheck      # típusellenőrzés
 npm run docs:spells    # SPELLS.md újragenerálása a spell-regiszterből
 npm run balance        # egyensúly-teszt: AI kontra AI véletlen paklikkal → BALANCE.md (~20 perc, 2 szálon)
 npm start              # a játékoldal-szerver (http://localhost:4545, a dist/mana-chess.html-t adja)
+npm run android        # Android-alkalmazás (APK) a dist/mana-chess.html-ből – lásd android/README.md
 ```
 
 Telepítés nélkül is kipróbálható: a GitHub Releases oldalon lévő `mana-chess.html` fájlt nyisd meg a böngészőben
@@ -61,7 +65,40 @@ Technológia: React 19, TypeScript (strict), Vite, Vitest, sima CSS. A teljes me
 - **Vissza / Előre (helyi 1v1):** félrekattintás esetére a felső sávban (keskeny képernyőn a tábla alatt) két nyíl van,
   billentyűvel Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z, Macen ⌘). A Vissza egyenként visszavon minden lépést – normál lépést,
   spellt a manájával együtt, átváltozást, kör végét, sőt a matt, feladás vagy döntetlen utáni állást is –, az Előre
-  ugyanazt játssza le újra. Új lépés után a visszavont ág elvész. Az AI elleni játékban nincs visszavonás.
+  ugyanazt játssza le újra. Új lépés után a visszavont ág elvész. A botok elleni játékban nincs visszavonás.
+
+## Botok
+
+A főmenü **Botok ellen** gombja a botok csarnokába visz (chess.com-stílusban): tizenegy ellenfél pixel-art portréval,
+Élő-pontszámmal, szinttel (bronz → legenda), rövid bemutatkozással és egy jellemző mondattal. Kiválasztod, kivel
+játszol, a színed (világos, sötét, sorsolás), a paklidat (vagy Spell-toborzás), a körvég-módot, és indulhat. A bot minden
+csatára véletlen paklit kap. A legyőzött botok koronát kapnak (az eszközön tárolva), a menü arcsora mutatja, ki a
+következő. **A botok elleni játszma nem változtatja az Élő-pontszámot** – azt csak a rangsorolt online játszmák.
+
+| Bot | Élő | Hogyan játszik |
+| --- | --- | --- |
+| Kende the genius | 100 | a lépések fele véletlen, sokat téved, vaktában varázsol |
+| Erika the English teacher | 300 | gyakran téved, nem néz előre |
+| Nádi the normal | 500 | egy lépést lát, az ütésváltásokat már végiggondolja |
+| Magyar Péter the man | 700 | kevesebb hiba, de még rövidlátó |
+| Misi the pro | 900 | két lépés mélyen keres |
+| Madár the master | 1100 | két lépés, kevés zaj |
+| Áron the cheater | 1500 | szinte hibátlanul két lépés mélyen |
+| István the hacker | 1750 | a legjobb spellt a következő lépésével együtt mérlegeli |
+| Magnum ice cream | 2000 | még pontosabb, két spell-jelöltet néz meg |
+| Boss the boss | 2300 | három lépés mélyen (szelektíven), három spell-jelölt |
+| Oli the phone taker | 3000 | három lépés mélyen, szélesebben, négy spell-jelölt, zaj nélkül |
+
+Az Élő-számok a botok címkéi; a sorrendet a `bun scripts/bot-ladder.ts` létra-teszt ellenőrzi (a szomszédos botok
+egymás ellen, cserélt színekkel és paklikkal). A keresés (`src/ai/botSearch.ts`): alfa-béta (negamax) iteratív
+mélyítéssel szigorú időkereten belül (a gyengébb telefon egyszerűen kevésbé mélyen keres), az ütésváltások végigkövetése
+(quiescence), a felső szinteken szelektív harmadik réteg; a gyengébb szinteket véletlen lépés, zaj és rövidlátás teszi
+emberivé. A bot egy **Web Workerben** gondolkodik, így a felület közben is akadás nélkül animál.
+
+**Személyiségek** (`src/bots/lines/`): minden bot folyamatosan beszél – köszön, reagál a lépéseidre, az ütésekre,
+a spellekre, a sakkra, a hibáidra és a jó lépéseidre, unatkozik, ha sokáig gondolkodsz, és a játszma végén is mond
+valamit. A szövegbuborék gépelve jelenik meg, a bot „hangján” csipogva; a sorok a Történet naplóba is bekerülnek.
+Erika hangulata váltakozik (laza ↔ szigorú), Oli tudja, hogy telefonon vagy-e. A beszéd a Beállításokban kikapcsolható.
 
 ## Szabály-értelmezések (ahol a specifikáció nyitva hagyott valamit)
 
@@ -207,8 +244,12 @@ src/
       cast.ts             közös varázslási keretrendszer (mana, ciklus, célpont-validálás szimulációval)
     decks.ts              előre elkészített paklik, validálás
     draft.ts              Spell-toborzás: az asztal (32 lap), a választások sorrendje és ellenőrzése
-  ai/simpleAI.ts          2 rétegű alfa-béta kereső + spell-értékelés
+  ai/simpleAI.ts          2 rétegű alfa-béta kereső + spell-értékelés (a klasszikus AI és a botok közös alapja)
+  ai/botSearch.ts         a botok keresője: iteratív mélyítés időkeretben, quiescence, szelektív 3. réteg, gombok
+  ai/worker.ts            a bot gondolkodása Web Workerben (src/ui/botRunner.ts indítja)
   ai/draftAI.ts           az AI választása toborzáskor
+  bots/                   roster.ts (a 11 bot: név, cím, Élő, szint, bemutatkozás), strength.ts (erősségük),
+                          chat.ts + persona.ts + lines/ (mit mondanak, mikor)
   net/protocol.ts         online: üzenetek, setup → játék, visszajátszás, állás-ujjlenyomat (hash)
   net/client.ts           online: szobák, fiókhívások, egy szék és egy fiók élő kapcsolata (long polling, újrakapcsolódás)
   ui/
@@ -216,8 +257,10 @@ src/
     useGame.ts            játékállapot + AI; minden sikeres akcióból egy „batch” (előtte/utána állapot)
     netSync.ts            online játszma szinkronban a szerverrel (azonnali saját lépés, ütemezett ellenfél-lépések)
     online/useOnline.ts   a backend címe, a bejelentkezett fiók (profil, barátok, kihívások) és a fiók élő adatfolyama
-    components/           Menu, DeckBuilder, Draft (a toborzás asztala), SpellInspector + SpellDemo, Rules, Board, …
-      online/             az Online képernyő: szerver → belépés/regisztráció/vendég → lobbi (játék + barátok)
+    components/           Menu, BotPicker (a botok csarnoka), ChatBubble, DeckBuilder, Draft, SpellInspector + SpellDemo, …
+      online/             az Online képernyő: szerver → belépés/regisztráció/vendég → lobbi (rangsorolt, játék, barátok)
+    native.ts             az Android-alkalmazás hídja (rezgés, ébren tartás, vissza gomb), böngészőben tartalékkal
+    useBotChat.ts         mikor szól a bot (reakciók, unatkozás, csevegés)
     demo/scenarios.ts     bemutató-forgatókönyvek mind a 71 spellhez (az engine-nel lefuttatva)
     pixel/                paletta, sprite-motor, bábuk, 71 spell-ikon, UI-ikonok, állapotjelek, betűtípus-adatok
     scenes/               procedurális pixel-jelenetek és textúrák (táj, haditanács-terem, tábla, keretek)
@@ -229,8 +272,9 @@ server/frontend.ts        a játékoldal-szerver: csak a játékot adja, szigor�
 scripts/                  egyfájlos build (build-single.mjs), játékoldal-szerver build, verzió-hash, SPELLS.md
                           generátor, egyensúly-teszt (balance.ts), betűtípus- és ikonrajzolók
 tests/                    Vitest: sakk (perft), mana/ciklus, spellek, fuzz, animáció-koreográfia, online szinkron
-                          (fixtures/lobby.ts: a backend szobáinak másolata), játékoldal-szerver
+                          (fixtures/lobby.ts: a backend szobáinak másolata), játékoldal-szerver, botok
 docker/, release/         a Docker-kép állapotellenőrzője; Start.bat / start.sh / README.txt Docker nélkül
+android/                  az Android-alkalmazás: MainActivity.java, erőforrások, build.sh, ikonrajzoló
 ```
 
 **A lényeg:** a játékállapotot kizárólag `applyAction(state, action)` változtatja, tisztán (a régi állapot érintetlen).
@@ -330,6 +374,16 @@ Szerverre Dockerrel: egy `docker-compose.yml` és `docker compose up -d` (lásd 
   megmarad az eszközön.
 - A pakliépítő bejelentkezve a fiókba ment; a böngészőben lévő paklik egy gombbal feltölthetők.
 
+**Rangsorolt játék** (főmenü → *Rangsorolt*, vagy az Online képernyő *Rangsorolt* füle; fiók kell hozzá): minden
+fióknak van **Élő-pontszáma** (kezdetben 1000, legalább 100). Az *Ellenfél keresése* gombbal sorba állsz; a szerver a
+legrégebben várakozót a hozzá legközelebbi pontszámú játékossal párosítja – a keresési tartomány ±100-ról 5
+másodpercenként 50-nel bővül, egy perc után bárki jöhet. A játszma saját paklikkal, véletlen színnel, automatikus
+körvéggel megy; körönként 3 perc jut (a felső sávban visszaszámol), aki kilép vagy egy percnél tovább nincs kapcsolata,
+veszít, visszavágó nincs (helyette *Új ellenfél*). Az eredmény után mindkét pontszám az Élő-képlet szerint változik
+(az első 30 játszmában K = 40, utána K = 20); a játék végén látszik a változás, a fülön a **ranglista**, a főmenüben a
+saját pontszám. **Csak a párosított játszmák számítanak**: a barátok elleni kihívások, a szobák és a botok nem.
+A vezérlőpulton a felhasználók listájában látszik az Élő-pontszám, és vissza is állítható.
+
 **Vezérlőpult** (külön port, alapból 5555, csak a szerver gépéről; csak adminisztrátori fiókkal lehet belépni):
 első indításkor a szerver ablakában kiírt *beállítókóddal* jön
 létre az első admin (elfelejtett jelszóhoz: `--setup`). Regisztráció: zárva / jóváhagyással / nyitott (automatikus
@@ -364,6 +418,17 @@ ugyanarra a játszmára vezet –, így a szervernek és a böngészőknek csak 
 - A szobák a szerver memóriájában élnek (újraindításkor elvesznek; a fiókok és paklik megmaradnak). A seed mindkét
   kliens számára ismert, ez baráti játékhoz rendben van; versenyszerű játékhoz a véletlent szerveroldalon kellene feloldani.
 
+## Android-alkalmazás
+
+Az `android/` mappában egy kis natív Android-alkalmazás van: teljes képernyős WebView a beépített játékoldallal
+(hálózat nélkül is megy a botok ellen és a helyi 1v1), online játék ugyanúgy, mint a böngészőben (a helyi hálózat
+http-s szervere is elérhető). Amit az oldalhoz ad: rezgés lépésnél, ütésnél, sakknál (kikapcsolható), a képernyő
+ébren marad játszma közben, a vissza gomb előbb a nyitott lapot / ablakot zárja, játszma közben rákérdez, a
+főmenüben a háttérbe teszi az appot; a kivágás (notch) és a billentyűzet nem takar ki semmit; háttérben elhallgat.
+Ikon a játék saját pixel-artjából (adaptív és témázott ikon is). Építés Gradle nélkül (`android/build.sh`: aapt2,
+javac, d8, zipalign, apksigner) – a frontend-repóban minden verziócímke (`v1.2.0`) a GitHub-kiadáshoz csatolja az
+APK-t. Az aláíró kulcs és az alapértelmezett szerver beállítása: `android/README.md`.
+
 ## Tesztek
 
 - **Perft** az ismert referenciaállásokra (kezdőállás 3 mélységig = 8902, Kiwipete, 3–5. pozíció) – ez igazolja a
@@ -394,6 +459,14 @@ ugyanarra a játszmára vezet –, így a szervernek és a böngészőknek csak 
   szobában és kihívásban a szerveren át (valódi HTTP-n is), valamint a visszavágó új toborzása.
 - **AI:** ha a királyt csak egy spell mentheti meg, az AI akkor is megtalálja, ha a mentő célpont a tábla túlsó végén
   van (korábban ilyenkor nem talált akciót, és a játék megállt).
+- **Botok:** mind a 11 bot csak szabályos akciót választ az időkeretén belül, az erősek leütik a lógó vezért és
+  megtalálják az egylépéses mattot, a mély keresés időre leáll; minden személyiségnek van mondata a fontos pillanatokra
+  (telefonon és gépen), minden helyőrző kitöltődik, Erika hangulata vált, Oli felismeri a telefont; minden portré
+  32 × 32-es és csak ismert színekből áll.
+- **Rangsorolt játék:** az Élő-képlet (K = 40 / 20, alsó határ), a bővülő keresési tartomány, a párosítás (a legközelebbi
+  pontszám, senki sem önmagával, a csendes oldal kiesik a sorból), a rangsorolt szoba (nincs visszavágó, a kilépés
+  vereség, 3 perces körökre szóló óra, egy perc távollét, közös kiesésnél megálló óra), a pontszám csak párosított
+  játszmában változik, a ranglista, a vezérlőpult visszaállítása, és a régi adatfájlok kiegészítése.
 
 ## Egyensúly-teszt
 
@@ -410,7 +483,9 @@ játékát tükrözi – a részleteket és a korlátokat lásd a jelentés vég
 
 ## Ismert korlátok
 
-- Az AI egyszerű (2 réteg), nem ismeri a háromszori ismétlést, és néha ismétel. A legújabb spellek közül a
+- A botok legfeljebb három réteg mélyen (szelektíven) keresnek, nem ismerik a háromszori ismétlést, és néha ismételnek.
+  A botok Élő-számai címkék: a valódi erősségük a létra-teszt szerint növekszik, de nem kalibrált Élő-értékek.
+  A legújabb spellek közül a
   Provokációt, Mágnest, Taszítást, Aknát és a mozgás-buffokat használja; a nagy „ultikat” (Sárkánytűz, Végítélet,
   Mana-armageddon) ritkán vagy egyáltalán nem.
 - Háromszori ismétlés miatti döntetlen nincs (a spellek miatt az „azonos állás” nehezen definiálható); az 50 lépéses

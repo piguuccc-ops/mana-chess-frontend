@@ -14,7 +14,7 @@ import { resolveDeck, type Prefs } from '../../storage';
 import { DeckCarousel } from '../DeckCarousel';
 import { DeckModeChoices } from '../DeckModeChoices';
 import { Icon } from '../pixel';
-import { COLOR_WORD, ColorChoices, theirColor, TurnChoices } from './parts';
+import { COLOR_WORD, ColorChoices, theirColor, TurnChoices, UpdateAppButton } from './parts';
 
 const message = (e: unknown) => (e instanceof NetError ? e.message : 'Váratlan hiba történt.');
 const ago = (s: number) => (s < 60 ? 'most nyílt' : s < 3600 ? `${Math.floor(s / 60)} perce vár` : `${Math.floor(s / 3600)} órája vár`);
@@ -26,6 +26,7 @@ interface Resumable {
   role: Seat['role'];
   opponent: string | null;
   waiting: boolean;
+  ranked?: boolean;
 }
 
 /** Re-render every `ms` (count-downs). */
@@ -287,7 +288,7 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
   // what can be continued: an account's rooms on the server, a guest's in this browser
   const resumable: Resumable[] = (
     account
-      ? account.me.games.map((g) => ({ code: g.code, token: g.token, role: g.role, opponent: g.opponent, waiting: g.game === 0 }))
+      ? account.me.games.map((g) => ({ code: g.code, token: g.token, role: g.role, opponent: g.opponent, waiting: g.game === 0, ranked: g.ranked }))
       : seats.map((s) => ({ code: s.code, token: s.token, role: s.role, opponent: s.opponent, waiting: !s.opponent }))
   ).filter((s) => s.code !== waiting?.state.code);
   const openRooms = (rooms ?? []).filter((r) => r.code !== waiting?.state.code && !resumable.some((s) => s.code === r.code));
@@ -309,7 +310,8 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
       {versionClash && (
         <p className="msg msg-error" role="alert">
           Ez a szerver a játék egy másik változatát futtatja ({info.build}, a tiéd: {BUILD_ID}), ezért nem enged játszani. Használd a
-          szerverhez tartozó játékoldalt (mana-chess.html).
+          szerverhez tartozó játékoldalt (mana-chess.html), vagy frissítsd az alkalmazást.
+          <UpdateAppButton />
         </p>
       )}
       {waiting ? (
@@ -409,7 +411,7 @@ export function PlayPanel({ origin, info, account, guestName, decks, prefs, onPr
               <li key={s.code} className="room-item is-mine">
                 <span className="room-item-code">{s.code}</span>
                 <span className="room-item-text">
-                  <b>{s.waiting ? 'A szobád (várakozik)' : `Játszma ${s.opponent ?? '?'} ellen`}</b>
+                  <b>{s.waiting ? 'A szobád (várakozik)' : `${s.ranked ? 'Rangsorolt játszma' : 'Játszma'} ${s.opponent ?? '?'} ellen`}</b>
                   <small>{s.waiting ? 'Még nem lépett be senki.' : 'Innen folytathatod, ahol abbahagytad.'}</small>
                 </span>
                 <button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => void resume(s)}>

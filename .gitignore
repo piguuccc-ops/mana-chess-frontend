@@ -5,3 +5,7 @@ dist
 .DS_Store
 balance-results.jsonl
 balance-duel.jsonl
+android/build
+android/icon-preview.png
+*.keystore
+*.jks

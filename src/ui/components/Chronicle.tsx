@@ -1,10 +1,34 @@
 // The right-hand side of the war table: the battle report („Történet”) written
 // on parchment, the move list, and the active effects with their durations.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { COLOR_NAME_HU } from '../../engine';
 import type { Effect, GameState, LogEntry } from '../../engine';
+import type { BotId } from '../../bots/roster';
 import { cleanSan, describeEffect, remainingText, stripEmoji } from '../format';
+import { BotPortrait } from './BotPortrait';
 import { Icon, SpellIcon, type IconName } from './pixel';
+
+/** A bot's line in the report, after the entry it was said at (`logAt` = the log's length then). */
+export interface ChatEntry {
+  id: number;
+  logAt: number;
+  text: string;
+  who: string;
+  bot: BotId;
+}
+
+function ChatLine({ c }: { c: ChatEntry }) {
+  return (
+    <li className="log-line log-chat">
+      <span className="log-icon" aria-hidden="true">
+        <BotPortrait id={c.bot} scale={1} className="log-face" />
+      </span>
+      <span className="log-text">
+        <b>{c.who}:</b> {c.text}
+      </span>
+    </li>
+  );
+}
 
 const KIND_ICON: Record<LogEntry['kind'], IconName> = {
   move: 'boot',
@@ -25,8 +49,8 @@ function LogLine({ l, fresh }: { l: LogEntry; fresh: boolean }) {
   );
 }
 
-/** Battle report + move list. */
-export function Chronicle({ state }: { state: GameState }) {
+/** Battle report + move list (and what the bot said, between the lines). */
+export function Chronicle({ state, chat }: { state: GameState; chat?: ChatEntry[] }) {
   const [tab, setTab] = useState<'log' | 'moves'>('log');
   const listRef = useRef<HTMLOListElement | null>(null);
   const seen = useRef(state.log.length);
@@ -38,7 +62,7 @@ export function Chronicle({ state }: { state: GameState }) {
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [state.log.length, tab, state.moveList.length]);
+  }, [state.log.length, tab, state.moveList.length, chat?.length]);
 
   // group the log by round
   const groups: { round: number; lines: { l: LogEntry; i: number }[] }[] = [];
@@ -97,7 +121,10 @@ export function Chronicle({ state }: { state: GameState }) {
                 <span className="log-round-title">{g.round}. kör</span>
                 <ol>
                   {g.lines.map(({ l, i }) => (
-                    <LogLine key={i} l={l} fresh={i >= freshFrom.current} />
+                    <Fragment key={i}>
+                      <LogLine l={l} fresh={i >= freshFrom.current} />
+                      {chat?.filter((c) => c.logAt === i + 1 || (i === state.log.length - 1 && c.logAt > state.log.length)).map((c) => <ChatLine key={`c${c.id}`} c={c} />)}
+                    </Fragment>
                   ))}
                 </ol>
               </li>

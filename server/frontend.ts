@@ -46,6 +46,8 @@ export function contentPolicy(html: string): string {
     `script-src 'self' ${hashes('script').join(' ')}`.trim(),
     `style-src 'self' ${hashes('style').join(' ')}`.trim(),
     "img-src 'self' data: blob:",
+    // the bots think in a Web Worker started from a Blob (the page's own embedded code)
+    "worker-src blob:",
     "font-src 'self' data:",
     "connect-src 'self' *",
     "manifest-src 'self'",

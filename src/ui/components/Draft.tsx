@@ -208,11 +208,20 @@ export function DraftBoard({ draft, names, mine, waiting, onPick, onLeave, leave
 // ── One machine: two players, or a player (Világos) and the AI (Sötét) ─────────
 
 export function LocalDraft({
-  initial, vsAi, onDone, onLeave, reduced,
-}: { initial: Draft; vsAi: boolean; onDone: (picks: Record<Color, SpellId[]>) => void; onLeave: () => void; reduced: boolean }) {
+  initial, vsAi, aiColor = 'b', aiName, onDone, onLeave, reduced,
+}: {
+  initial: Draft;
+  vsAi: boolean;
+  /** Against a bot: its colour and name. */
+  aiColor?: Color;
+  aiName?: string;
+  onDone: (picks: Record<Color, SpellId[]>) => void;
+  onLeave: () => void;
+  reduced: boolean;
+}) {
   const [draft, setDraft] = useState(initial);
   const [last, setLast] = useState<{ id: SpellId; by: Color } | null>(null);
-  const ai: Color | null = vsAi ? 'b' : null;
+  const ai: Color | null = vsAi ? aiColor : null;
   const turn = draftTurn(draft);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -249,9 +258,9 @@ export function LocalDraft({
   return (
     <DraftBoard
       draft={draft}
-      names={vsAi ? { w: 'Te', b: 'AI' } : { w: 'Világos', b: 'Sötét' }}
+      names={ai ? (ai === 'b' ? { w: 'Te', b: aiName ?? 'AI' } : { w: aiName ?? 'AI', b: 'Te' }) : { w: 'Világos', b: 'Sötét' }}
       mine={(c) => c !== ai}
-      waiting={ai && turn === ai ? 'Az AI választ…' : null}
+      waiting={ai && turn === ai ? `${aiName ?? 'Az AI'} választ…` : null}
       onPick={pick}
       onLeave={onLeave}
       leaveLabel="Menü"

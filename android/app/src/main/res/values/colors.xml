@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the game's darkest wood: no white flash while the page loads -->
+    <color name="night">#FF120C0A</color>
+    <color name="icon_back">#FF2A1540</color>
+</resources>

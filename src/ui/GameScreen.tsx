@@ -4,8 +4,12 @@ import {
   opposite, PIECE_NAME_HU, provokedSquares, SPELLS, squareName, validTargets,
 } from '../engine';
 import type { Action, Color, GameState, SpellId, Square } from '../engine';
+import { BOTS, botFullName } from '../bots/roster';
+import { RANKED_TURN_MS } from '../net/protocol';
 import { cutAmbience, sfx } from './audio/sound';
 import { Board } from './components/Board';
+import { BotPortrait } from './components/BotPortrait';
+import { ChatBubble } from './components/ChatBubble';
 import { Chronicle, EffectsPanel } from './components/Chronicle';
 import { HandColumn } from './components/HandColumn';
 import { CastFlight, CheckStamp, ConfirmDialog, GameOverScreen, PromotionDialog, TurnBanner } from './components/Overlays';
@@ -16,8 +20,10 @@ import { SettingsBody, Switch } from './components/Settings';
 import { SpellInspector } from './components/SpellInspector';
 import { CATEGORY_COLOR } from './format';
 import type { Step } from './history';
+import { keepScreenOn, onPhone, pushBack, vibrate } from './native';
 import type { OnlineDraft, OnlineGame } from './netSync';
-import type { Prefs } from './storage';
+import { addBotResult, type Prefs } from './storage';
+import { useBotChat } from './useBotChat';
 import { useGame, type GameConfig } from './useGame';
 import { choreograph, rewindPlan, type Plan } from './vfx/choreo';
 import { VfxEngine } from './vfx/engine';
@@ -29,6 +35,8 @@ interface Props {
   reduced: boolean;
   onMenu: () => void;
   onRematch: () => void;
+  /** Ranked games: back to the queue for a new opponent (there is no rematch). */
+  onNewOpponent?: () => void;
   /** Online: the next game in the same room has begun (both asked for a rematch). */
   onNextGame?: (g: OnlineGame) => void;
   /** Online, Spell-toborzás room: the rematch begins with a new draft. */
@@ -85,13 +93,20 @@ function stepText(s: Step): string {
   }
 }
 
-export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch, onNextGame, onNextDraft, testHook }: Props) {
+export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch, onNewOpponent, onNextGame, onNextDraft, testHook }: Props) {
   const { state, stateRef, dispatch, batch, toast, showToast, lastMove, thinking, undo, redo, canUndo, canRedo, hold, net, sync } = useGame(config, { onNextGame, onNextDraft });
   /** Online games: this browser's colour (the other side is played from another machine). */
   const me: Color | null = config.mode === 'online' && config.online ? config.online.me : null;
   const names = config.online?.setup.names ?? null;
+  /** A ranked (matchmade) game: both ratings at its start. */
+  const ranked = config.online?.ranked ?? null;
   /** Local games get back / forward arrows (misclicks). */
   const history = config.mode === 'local';
+  /** Against a bot: who it is, and what it says. */
+  const botId = config.mode === 'ai' ? (config.bot ?? null) : null;
+  const bot = botId ? BOTS[botId] : null;
+  const onPhoneDevice = useMemo(() => onPhone(), []);
+  const chat = useBotChat({ bot: botId, botColor: config.aiColor, state, batch, enabled: prefs.botChat, phone: onPhoneDevice });
   useEffect(() => {
     testHook?.({ dispatch, getState: () => stateRef.current });
   }, [testHook, dispatch, stateRef]);
@@ -151,6 +166,64 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
   const bottom: Color = flipped ? 'b' : 'w';
   const top: Color = opposite(bottom);
   const handColor: Color = human ?? shownTurn;
+
+  // ── the device: the screen stays on during a game; a buzz on the moments that matter ──
+  useEffect(() => {
+    keepScreenOn(true);
+    return () => keepScreenOn(false);
+  }, []);
+  const buzzed = useRef<number | null>(null);
+  useEffect(() => {
+    if (!batch || batch.rewind || batch.id === buzzed.current) return;
+    buzzed.current = batch.id;
+    const after = batch.after;
+    if (after.status.kind !== 'playing') vibrate(after.status.kind === 'checkmate' || after.status.kind === 'resigned' ? [60, 60, 120] : [40, 40, 40]);
+    else if (after.inCheck && after.turn !== batch.before.turn) vibrate([30, 40, 30]);
+    else if (after.events.some((e) => e.type === 'capture' || e.type === 'destroy')) vibrate(28);
+    else if (batch.action.type === 'CAST') vibrate(18);
+    else if (batch.action.type === 'MOVE') vibrate(10);
+  }, [batch]);
+
+  // ── ranked games: the turn clock (the server's is the real one; this one shows it) ──
+  const clockOwner: Color = state.pendingPromotion?.color ?? state.turn;
+  const [clockSince, setClockSince] = useState(() => Date.now() - (RANKED_TURN_MS - (config.online?.turnLeftMs ?? RANKED_TURN_MS)));
+  const firstOwner = useRef(true);
+  useEffect(() => {
+    if (firstOwner.current) {
+      firstOwner.current = false;
+      return;
+    }
+    setClockSince(Date.now());
+  }, [clockOwner]);
+  const [, tickClock] = useState(0);
+  const clockRunning = !!ranked && state.status.kind === 'playing';
+  useEffect(() => {
+    if (!clockRunning) return;
+    const t = window.setInterval(() => tickClock((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [clockRunning]);
+  const clockLeft = clockRunning ? Math.max(0, Math.ceil((RANKED_TURN_MS - (Date.now() - clockSince)) / 1000)) : 0;
+  const clockMine = clockRunning && !!me && clockOwner === me;
+  /** Half a minute and ten seconds before the end of the own turn: a buzz and a sound (once each per turn). */
+  const warned = useRef<{ since: number; at: Set<number> }>({ since: 0, at: new Set() });
+  useEffect(() => {
+    if (!clockMine) return;
+    if (warned.current.since !== clockSince) warned.current = { since: clockSince, at: new Set() };
+    const at = [10, 30].find((x) => clockLeft <= x && clockLeft > 0 && !warned.current.at.has(x));
+    if (at === undefined) return;
+    [10, 30].filter((x) => x >= at).forEach((x) => warned.current.at.add(x));
+    vibrate(at === 10 ? [80, 60, 80] : 60);
+    sfx('turn');
+  }, [clockMine, clockLeft, clockSince]);
+
+  // ── against a bot: the result goes into the record (this device) ──
+  const recorded = useRef(false);
+  useEffect(() => {
+    if (!botId || recorded.current || state.status.kind === 'playing' || !human) return;
+    recorded.current = true;
+    const st = state.status;
+    addBotResult(botId, st.kind === 'checkmate' || st.kind === 'resigned' ? (st.winner === human ? 'w' : 'l') : 'd');
+  }, [botId, state.status, human]);
 
   const legal = useMemo(() => legalMoves(state), [state]);
   const moveTargets = useMemo(() => (selected !== null ? legal.filter((m) => m.from === selected) : []), [legal, selected]);
@@ -541,7 +614,8 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
   const endReady = canAct && canEndTurn(state) && (bonus || state.turnState.normalMoveDone || state.turnState.spellsCast > 0 || timeStopped);
   function label(c: Color): string {
     if (me && names) return names[c];
-    return config.mode === 'ai' ? (c === config.aiColor ? 'Egyszerű AI' : 'Te') : COLOR_NAME_HU[c];
+    // phones: the bot's first name only (the plate has room for little more)
+    return config.mode === 'ai' ? (c === config.aiColor ? (bot ? (phone ? bot.name : botFullName(bot)) : 'Egyszerű AI') : 'Te') : COLOR_NAME_HU[c];
   }
   const round = Math.floor(state.turnIndex / 2) + 1;
   const targetColor = targeting ? CATEGORY_COLOR[SPELLS[targeting.spellId].category] : null;
@@ -554,7 +628,9 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
   // ── online: the rematch button ──
   const opponent = me ? label(opposite(me)) : '';
   const rematchView = net
-    ? net.closed
+    ? ranked
+      ? { label: 'Új ellenfél', disabled: false, note: 'Rangsorolt játszma után nincs visszavágó: az Új ellenfél gombbal azonnal újra keresel.' }
+      : net.closed
       ? { label: 'Visszavágó', disabled: true, note: net.closed }
       : net.rematch.includes(net.game.role)
         ? { label: 'Várakozás…', disabled: true, note: `Visszavágót kértél – ha ${opponent} is kéri, cserélt színekkel indul.` }
@@ -567,7 +643,7 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
     <PlayerPlate
       state={state}
       color={c}
-      label={me && c === me ? `${label(c)} (te)` : label(c)}
+      label={`${label(c)}${me && c === me ? ' (te)' : ''}${ranked && phone ? ` · ${ranked[c]}` : ''}`}
       active={playing && shownTurn === c}
       thinking={thinking && !isHuman(c)}
       placement={placement}
@@ -576,6 +652,8 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
       showNext={phone && c === handColor}
       crystalScale={phone || placement === 'bottom' ? crystalScale : 2}
       onInspect={(id) => openInspect(id, c)}
+      avatar={bot && c === config.aiColor ? <BotPortrait id={bot.id} scale={phone ? 1 : 2} talking={!!chat.line} /> : undefined}
+      elo={phone ? null : bot && c === config.aiColor ? { value: bot.elo, tier: bot.tier } : ranked ? { value: ranked[c] } : null}
     />
   );
 
@@ -639,6 +717,23 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
     </div>
   );
 
+  /** The bot's lines in the battle report, after the entry they were said at. */
+  const chatLog = useMemo(() => (bot ? chat.log.map((l) => ({ id: l.id, logAt: l.logAt, text: l.text, who: bot.name, bot: bot.id })) : undefined), [bot, chat.log]);
+
+  // ── the Android back button: closes what is open, then asks before leaving the game ──
+  const backRef = useRef<() => boolean>(() => false);
+  backRef.current = () => {
+    if (inspect) setInspect(null);
+    else if (confirm) setConfirm(null);
+    else if (settingsOpen) setSettingsOpen(false);
+    else if (sheetOpen) setSheetOpen(false);
+    else if (targeting || armed || selected !== null) cancel();
+    else if (!playing) onMenu();
+    else setConfirm('leave');
+    return true;
+  };
+  useEffect(() => pushBack(() => backRef.current()), []);
+
   const [sideTab, setSideTab] = useState<'log' | 'effects'>('log');
   const sideTabs = (
     <div className="side-tabs">
@@ -650,7 +745,7 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
           Aktív hatások {state.effects.length > 0 && <span className="count-chip">{state.effects.length}</span>}
         </button>
       </div>
-      {sideTab === 'log' ? <Chronicle state={state} /> : <EffectsPanel state={state} />}
+      {sideTab === 'log' ? <Chronicle state={state} chat={chatLog} /> : <EffectsPanel state={state} />}
     </div>
   );
 
@@ -676,9 +771,23 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
             </button>
           )}
           {net && (
-            <span className={`room-chip is-${net.connection}`} title={`Online szoba: ${net.game.code}${net.connection === 'online' ? '' : ' – nincs kapcsolat a szerverrel'}`}>
-              <Icon name="globe" scale={1} />
-              <span className="hide-sm">{net.game.code}</span>
+            <span
+              className={`room-chip is-${net.connection} ${ranked ? 'is-ranked' : ''}`}
+              title={`${ranked ? 'Rangsorolt játszma' : 'Online szoba'}: ${net.game.code}${net.connection === 'online' ? '' : ' – nincs kapcsolat a szerverrel'}`}
+            >
+              <Icon name={ranked ? 'trophy' : 'globe'} scale={1} />
+              <span className="hide-sm">{ranked ? 'Rangsorolt' : net.game.code}</span>
+            </span>
+          )}
+          {clockRunning && (
+            <span
+              id="turn-clock"
+              className={`turn-clock ${clockMine ? 'is-mine' : 'is-theirs'} ${clockLeft <= 30 ? 'is-low' : ''}`}
+              title={clockMine ? 'Ennyi időd van a körödre – ha lejár, elveszíted a játszmát.' : 'Az ellenfél ennyi ideje van a körére.'}
+              aria-label={`Lépésidő: ${Math.floor(clockLeft / 60)} perc ${clockLeft % 60} másodperc`}
+            >
+              <Icon name="hourglass" scale={1} />
+              {Math.floor(clockLeft / 60)}:{String(clockLeft % 60).padStart(2, '0')}
             </span>
           )}
         </div>
@@ -752,6 +861,7 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
               boardRef={boardRef}
               frameRef={frameRef}
             />
+            {bot && layout !== 'flat' && <ChatBubble bot={bot.id} line={chat.line} reduced={reduced} voice={prefs.botChat} placement={platesAside ? 'right' : 'left'} />}
             {banner && <TurnBanner key={banner.id} color={banner.color} round={banner.round} sub={banner.sub} />}
             {stamp && <CheckStamp key={stamp.id} mate={stamp.mate} />}
             {toast && (
@@ -786,6 +896,12 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
               {endTurn}
             </div>
           )}
+          {/* a phone on its side: the bot talks in the column next to the board, not over it */}
+          {bot && layout === 'flat' && (
+            <div className="chat-slot">
+              <ChatBubble bot={bot.id} line={chat.line} reduced={reduced} voice={prefs.botChat} />
+            </div>
+          )}
           {!platesAside && plate(bottom, 'bottom')}
         </section>
 
@@ -796,7 +912,7 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
               sideTabs
             ) : (
               <>
-                <Chronicle state={state} />
+                <Chronicle state={state} chat={chatLog} />
                 <EffectsPanel state={state} />
               </>
             )}
@@ -811,10 +927,17 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
 
       {confirm && !me && (
         <ConfirmDialog
-          text={confirm === 'resign' ? `${COLOR_NAME_HU[config.mode === 'ai' ? opposite(config.aiColor) : state.turn]} feladja a játszmát?` : 'Döntetlen megegyezéssel?'}
-          yes={confirm === 'resign' ? 'Feladom' : 'Döntetlen'}
+          text={
+            confirm === 'leave'
+              ? 'Kilépsz a menübe? Ez a játszma nem folytatható később.'
+              : confirm === 'resign'
+                ? `${COLOR_NAME_HU[config.mode === 'ai' ? opposite(config.aiColor) : state.turn]} feladja a játszmát?`
+                : 'Döntetlen megegyezéssel?'
+          }
+          yes={confirm === 'leave' ? 'Kilépek' : confirm === 'resign' ? 'Feladom' : 'Döntetlen'}
           onYes={() => {
-            dispatch(confirm === 'resign' ? { type: 'RESIGN', color: config.mode === 'ai' ? opposite(config.aiColor) : state.turn } : { type: 'AGREE_DRAW' });
+            if (confirm === 'leave') onMenu();
+            else dispatch(confirm === 'resign' ? { type: 'RESIGN', color: config.mode === 'ai' ? opposite(config.aiColor) : state.turn } : { type: 'AGREE_DRAW' });
             setConfirm(null);
           }}
           onNo={() => setConfirm(null)}
@@ -827,7 +950,9 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
               ? 'Feladod a játszmát?'
               : confirm === 'draw'
                 ? `Döntetlent ajánlasz ${label(opposite(me))} játékosnak?`
-                : 'Kilépsz a szobából? A futó játszma feladásnak számít.'
+                : ranked
+                  ? 'Kilépsz? A rangsorolt játszma vereségnek számít, és csökken az Élő-pontszámod.'
+                  : 'Kilépsz a szobából? A futó játszma feladásnak számít.'
           }
           yes={confirm === 'resign' ? 'Feladom' : confirm === 'draw' ? 'Ajánlom' : 'Kilépek'}
           tone={confirm === 'draw' ? 'primary' : 'danger'}
@@ -889,13 +1014,55 @@ export function GameScreen({ config, prefs, onPrefs, reduced, onMenu, onRematch,
           state={state}
           human={human}
           names={names}
-          onRematch={net ? () => sync?.requestRematch() : onRematch}
+          reasonText={
+            net?.forfeit
+              ? net.forfeit.reason === 'time'
+                ? `${label(net.forfeit.by)} lépésideje lejárt`
+                : `${label(net.forfeit.by)} túl sokáig nem tért vissza`
+              : undefined
+          }
+          extra={
+            bot && chat.log.length > 0 ? (
+              <div className="gameover-bot">
+                <BotPortrait id={bot.id} scale={2} />
+                <p>
+                  <b>{bot.name}:</b> „{chat.log[chat.log.length - 1].text}”
+                </p>
+              </div>
+            ) : ranked && me ? (
+              <RatingResult change={net?.rated?.[me] ?? null} before={ranked[me]} />
+            ) : null
+          }
+          onRematch={net ? (ranked ? (onNewOpponent ?? onMenu) : () => sync?.requestRematch()) : onRematch}
           rematch={rematchView}
           onMenu={onMenu}
           menuLabel={me ? 'Lobbi' : undefined}
           onClose={() => setShowOver(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** A ranked game's result: the rating before and after (the server sends it right after the last step). */
+function RatingResult({ change, before }: { change: { before: number; after: number } | null; before: number }) {
+  if (!change) {
+    return (
+      <div className="gameover-rating is-pending">
+        <Icon name="trophy" scale={2} />
+        <span>
+          Élő-pontszám: <b>{before}</b> – az új pontszám számolása…
+        </span>
+      </div>
+    );
+  }
+  const d = change.after - change.before;
+  return (
+    <div className={`gameover-rating ${d > 0 ? 'is-up' : d < 0 ? 'is-down' : ''}`} id="rating-result">
+      <Icon name="trophy" scale={2} />
+      <span>
+        Élő-pontszám: <b>{change.before}</b> → <b>{change.after}</b> <em>({d > 0 ? `+${d}` : d})</em>
+      </span>
     </div>
   );
 }

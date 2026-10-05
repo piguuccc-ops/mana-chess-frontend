@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown while the game starts (Android 11 and older): the logo on the night background. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/night" />
+    <item android:gravity="center">
+        <bitmap android:src="@drawable/splash_logo" android:gravity="center" android:filter="false" />
+    </item>
+</layer-list>

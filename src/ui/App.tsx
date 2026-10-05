@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { newDraft, opposite, PRESET_DECKS, type Color, type DeckDef, type Draft, type SpellId } from '../engine';
+import { BOTS, type BotId } from '../bots/roster';
+import { newDraft, opposite, PRESET_DECKS, randomDeck, type Color, type DeckDef, type Draft, type SpellId } from '../engine';
 import { forgetSeat, OnlineSession, rememberSeat } from '../net/client';
 import { setAmbience, setSoundSettings, sfx, unlockAudio } from './audio/sound';
+import { BotPicker } from './components/BotPicker';
 import { DeckBuilder, type DeckHome } from './components/DeckBuilder';
 import { LocalDraft, OnlineDraftScreen } from './components/Draft';
-import { Menu } from './components/Menu';
-import { OnlineHub } from './components/online/OnlineHub';
+import { Menu, type MenuProfile } from './components/Menu';
+import { OnlineHub, type HubTab } from './components/online/OnlineHub';
 import { Rules } from './components/Rules';
 import { GameScreen } from './GameScreen';
 import { decksOf, draftFromRoom, gameFromRoom, type OnlineDraft, type OnlineGame } from './netSync';
 import { useOnline } from './online/useOnline';
-import { loadCustomDecks, loadPrefs, playableDecks, resolveDeck, saveCustomDecks, savePrefs, type Prefs } from './storage';
+import { pushBack, setVibration } from './native';
+import { loadBotRecord, loadCustomDecks, loadPrefs, playableDecks, resolveDeck, saveCustomDecks, savePrefs, type BotRecord, type Prefs } from './storage';
 import type { GameConfig } from './useGame';
 
-type Screen = 'title' | 'online' | 'decks' | 'rules' | 'game' | 'draft';
-/** Spell-toborzás in progress: on this machine, or in an online room. */
-type DraftPlay = { kind: 'local'; draft: Draft; vsAi: boolean; autoEndTurn: boolean; key: number } | { kind: 'online'; od: OnlineDraft; key: number };
+type Screen = 'title' | 'online' | 'decks' | 'rules' | 'game' | 'draft' | 'bots';
+/** Spell-toborzás in progress: on this machine (two players, or against a bot), or in an online room. */
+type DraftPlay =
+  | { kind: 'local'; draft: Draft; vsAi: boolean; aiColor: Color; bot?: BotId; autoEndTurn: boolean; key: number }
+  | { kind: 'online'; od: OnlineDraft; key: number };
 
 /** A drafted deck as the game screen takes it. */
 const draftedDeck = (c: Color, spells: SpellId[]): DeckDef => ({ id: `draft-${c}`, name: 'Toborzott pakli', description: '', spells });
@@ -43,6 +48,10 @@ export function App() {
   const screenRef = useRef(screen);
   screenRef.current = screen;
   const [menuPanel, setMenuPanel] = useState<'setup' | 'settings' | null>(null);
+  /** The online screen's tab to open with (the menu's Rangsorolt, or back from a ranked game). */
+  const [hubTab, setHubTab] = useState<HubTab>('play');
+  /** The online screen starts a ranked search at once (the game-over screen's „Új ellenfél”). */
+  const [hubSearch, setHubSearch] = useState(false);
   const [custom, setCustom] = useState<DeckDef[]>(() => loadCustomDecks());
   const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs());
   const [config, setConfig] = useState<GameConfig | null>(null);
@@ -68,7 +77,9 @@ export function App() {
   }, []);
 
   useEffect(() => setSoundSettings(prefs.sound), [prefs.sound]);
-  useEffect(() => setAmbience(screen === 'title' || screen === 'online' || screen === 'draft' ? 'menu' : screen === 'game' ? 'war' : null), [screen]);
+  useEffect(() => setVibration(prefs.vibration), [prefs.vibration]);
+  const [botRecord, setBotRecord] = useState<BotRecord>(() => loadBotRecord());
+  useEffect(() => setAmbience(screen === 'title' || screen === 'online' || screen === 'draft' || screen === 'bots' ? 'menu' : screen === 'game' ? 'war' : null), [screen]);
   useEffect(() => {
     const unlock = () => unlockAudio();
     window.addEventListener('pointerdown', unlock);
@@ -141,7 +152,12 @@ export function App() {
     // a friend accepted our challenge: the game starts – unless we are busy elsewhere
     onGame: (server, seat, state) => {
       if (screenRef.current === 'game' || screenRef.current === 'decks' || screenRef.current === 'draft') {
-        notify('Elfogadták a kihívásodat – a játszmát az Online menüben, a Folytatásnál éred el.');
+        notify(
+          state.ranked
+            ? 'Ellenfelet találtunk a rangsorolt játszmádhoz – az Online menüben, a Folytatásnál éred el. Siess: egy perc után a távollét vereségnek számít!'
+            : 'Elfogadták a kihívásodat – a játszmát az Online menüben, a Folytatásnál éred el.',
+          state.ranked ? 'error' : 'info',
+        );
         return;
       }
       const s = new OnlineSession(server, seat, state);
@@ -180,14 +196,14 @@ export function App() {
     if (prefs.draft) {
       // Spell-toborzás: the decks are drafted first
       go('draft', 'scene', () => {
-        setDraftPlay({ kind: 'local', draft: newDraft((Math.random() * 2 ** 31) | 0), vsAi: prefs.mode === 'ai', autoEndTurn: prefs.autoEndTurn, key: Date.now() });
+        setDraftPlay({ kind: 'local', draft: newDraft((Math.random() * 2 ** 31) | 0), vsAi: false, aiColor: 'b', autoEndTurn: prefs.autoEndTurn, key: Date.now() });
         setMenuPanel(null);
       });
       return;
     }
     go('game', 'scene', () => {
       setConfig({
-        mode: prefs.mode === 'ai' ? 'ai' : 'local',
+        mode: 'local',
         aiColor: 'b',
         decks: { w: deckById(prefs.whiteDeckId), b: deckById(prefs.blackDeckId) },
         seed: (Math.random() * 2 ** 31) | 0,
@@ -195,6 +211,33 @@ export function App() {
       });
       setGameKey((k) => k + 1);
       setMenuPanel(null);
+    });
+  };
+
+  /** A battle against the bot chosen in the bots' hall. */
+  const startBot = () => {
+    sfx('turn');
+    const bot = BOTS[prefs.botId];
+    const mine: Color = prefs.botColor === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : prefs.botColor;
+    const aiColor = opposite(mine);
+    if (prefs.botDraft) {
+      go('draft', 'scene', () =>
+        setDraftPlay({ kind: 'local', draft: newDraft((Math.random() * 2 ** 31) | 0), vsAi: true, aiColor, bot: bot.id, autoEndTurn: prefs.autoEndTurn, key: Date.now() }),
+      );
+      return;
+    }
+    const botDeck: DeckDef = { id: `bot-${bot.id}`, name: `${bot.name} paklija`, description: '', spells: randomDeck() };
+    const myDeck = deckById(prefs.botDeckId);
+    go('game', 'scene', () => {
+      setConfig({
+        mode: 'ai',
+        aiColor,
+        bot: bot.id,
+        decks: aiColor === 'b' ? { w: myDeck, b: botDeck } : { w: botDeck, b: myDeck },
+        seed: (Math.random() * 2 ** 31) | 0,
+        autoEndTurn: prefs.autoEndTurn,
+      });
+      setGameKey((k) => k + 1);
     });
   };
 
@@ -241,6 +284,42 @@ export function App() {
 
   const me = account?.me;
   const onlineBadge = me ? me.challengesIn.length + me.requestsIn.length : 0;
+  const profile: MenuProfile | null =
+    me && online.server.phase === 'ok'
+      ? { name: me.user.name, server: online.server.info.name, rating: me.user.rating, w: me.user.ranked.w, l: me.user.ranked.l, d: me.user.ranked.d, rank: me.user.rank }
+      : null;
+  const openOnline = (tab: HubTab) => {
+    setHubTab(tab);
+    setHubSearch(false);
+    go('online', 'book');
+  };
+
+  // ── the Android back button: what the screen's own back button does (a game handles its own) ──
+  const backRef = useRef<() => boolean>(() => false);
+  backRef.current = () => {
+    // an open dialog (a card, a confirmation, an online form) closes on Escape
+    if (document.querySelector('.overlay, [aria-modal="true"]')) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return true;
+    }
+    switch (screenRef.current) {
+      case 'title':
+        return false; // leaves the app (an open menu panel answers first, see Menu)
+      case 'draft':
+        if (draftPlay?.kind === 'online') {
+          notify('A toborzásból a Kilépés gombbal léphetsz ki (a szoba bezárul).');
+          return true;
+        }
+        go(draftPlay?.bot ? 'bots' : 'title', 'fade');
+        return true;
+      case 'game':
+        return true; // the game screen asks first (its handler comes before this one)
+      default:
+        go('title', 'fade');
+        return true;
+    }
+  };
+  useEffect(() => pushBack(() => backRef.current()), []);
 
   return (
     <div className={`app screen-${screen} ${reduced ? 'motion-reduced' : ''}`} lang="hu" onClickCapture={onClickCapture}>
@@ -250,16 +329,34 @@ export function App() {
           prefs={prefs}
           onPrefs={setPrefs}
           onStart={start}
-          onOnline={() => go('online', 'book')}
+          onBots={() => {
+            setBotRecord(loadBotRecord());
+            go('bots', 'book');
+          }}
+          onRanked={() => openOnline('ranked')}
+          onOnline={() => openOnline('play')}
           onlineBadge={onlineBadge}
           onDeckBuilder={() => go('decks', 'book')}
           onRules={() => go('rules', 'book')}
           reduced={reduced}
           initialPanel={menuPanel}
+          botRecord={botRecord}
+          profile={profile}
         />
       )}
       {screen === 'online' && (
-        <OnlineHub online={online} decks={onlineDecks} prefs={prefs} onPrefs={setPrefs} onGame={startOnline} onDraft={startOnlineDraft} onBack={() => go('title', 'fade')} notify={notify} />
+        <OnlineHub
+          online={online}
+          decks={onlineDecks}
+          prefs={prefs}
+          onPrefs={setPrefs}
+          onGame={startOnline}
+          onDraft={startOnlineDraft}
+          onBack={() => go('title', 'fade')}
+          notify={notify}
+          initialTab={hubTab}
+          autoSearch={hubSearch}
+        />
       )}
       {screen === 'decks' && (
         <DeckBuilder
@@ -273,19 +370,25 @@ export function App() {
         />
       )}
       {screen === 'rules' && <Rules onBack={() => go('title', 'fade')} reduced={reduced} />}
+      {screen === 'bots' && (
+        <BotPicker decks={decks} prefs={prefs} onPrefs={setPrefs} record={botRecord} onStart={startBot} onBack={() => go('title', 'fade')} reduced={reduced} />
+      )}
       {screen === 'draft' && draftPlay?.kind === 'local' && (
         <LocalDraft
           key={draftPlay.key}
           initial={draftPlay.draft}
           vsAi={draftPlay.vsAi}
+          aiColor={draftPlay.aiColor}
+          aiName={draftPlay.bot ? BOTS[draftPlay.bot].name : undefined}
           reduced={reduced}
-          onLeave={() => go('title', 'fade')}
+          onLeave={() => go(draftPlay.bot ? 'bots' : 'title', 'fade')}
           onDone={(picks) => {
             const dp = draftPlay;
             go('game', 'scene', () => {
               setConfig({
                 mode: dp.vsAi ? 'ai' : 'local',
-                aiColor: 'b',
+                aiColor: dp.aiColor,
+                ...(dp.bot ? { bot: dp.bot } : {}),
                 decks: { w: draftedDeck('w', picks.w), b: draftedDeck('b', picks.b) },
                 seed: (Math.random() * 2 ** 31) | 0,
                 autoEndTurn: dp.autoEndTurn,
@@ -318,12 +421,21 @@ export function App() {
           onMenu={() => {
             if (config.mode === 'online') {
               leaveOnline();
+              setHubTab(config.online?.ranked ? 'ranked' : 'play');
+              setHubSearch(false);
               go('online', 'fade');
               return;
             }
-            go('title', 'fade');
+            if (config.bot) setBotRecord(loadBotRecord());
+            go(config.bot ? 'bots' : 'title', 'fade');
           }}
-          onRematch={start}
+          onNewOpponent={() => {
+            leaveOnline();
+            setHubTab('ranked');
+            setHubSearch(true);
+            go('online', 'fade');
+          }}
+          onRematch={config.bot ? startBot : start}
           onNextGame={startOnline}
           onNextDraft={startOnlineDraft}
         />

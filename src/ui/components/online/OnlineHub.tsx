@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // The online screen: 1. which backend (ip:port or https://…), 2. sign in / register / guest,
-// 3. the lobby – new game and rooms on one side, friends and challenges on the other.
+// 3. the lobby – ranked play (matchmaking, the leaderboard) on one tab; friendly games (new game,
+// rooms) and friends with their challenges on the other.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { DeckDef } from '../../../engine';
 import { displayServer } from '../../../net/client';
 import type { OnlineDraft, OnlineGame } from '../../netSync';
@@ -12,7 +13,10 @@ import { Icon } from '../pixel';
 import { AuthStep } from './AuthStep';
 import { FriendsPanel, GuestFriends } from './FriendsPanel';
 import { PlayPanel } from './PlayPanel';
+import { RankedPanel } from './RankedPanel';
 import { ServerStep } from './ServerStep';
+
+export type HubTab = 'ranked' | 'play' | 'friends';
 
 interface Props {
   online: Online;
@@ -25,11 +29,17 @@ interface Props {
   onDraft: (d: OnlineDraft) => void;
   onBack: () => void;
   notify: (text: string, tone?: 'info' | 'error') => void;
+  /** The tab to open with (the main menu's Rangsorolt opens the ranked one). */
+  initialTab?: HubTab;
+  /** Look for a ranked opponent at once (after a ranked game: „Új ellenfél”). */
+  autoSearch?: boolean;
 }
 
-export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onDraft, onBack, notify }: Props) {
+export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onDraft, onBack, notify, initialTab = 'play', autoSearch = false }: Props) {
   const { server, account, guest } = online;
-  const [tab, setTab] = useState<'play' | 'friends'>('play');
+  const [tab, setTab] = useState<HubTab>(initialTab);
+  const [searching, setSearching] = useState(false);
+  const onSearching = useCallback((on: boolean) => setSearching(on), []);
 
   // opening the screen: connect to the usual server, or refresh what we know about it
   useEffect(() => {
@@ -85,14 +95,34 @@ export function OnlineHub({ online, decks, prefs, onPrefs, onGame, onDraft, onBa
     body = (
       <>
         <nav className="tabs online-lobby-tabs" role="tablist" aria-label="Online">
-          <button type="button" role="tab" aria-selected={tab === 'play'} className="tab" onClick={() => setTab('play')}>
+          <button type="button" role="tab" id="tab-ranked" aria-selected={tab === 'ranked'} className="tab" onClick={() => setTab('ranked')}>
+            <Icon name="trophy" scale={1} /> Rangsorolt {searching && <span className="tab-pulse" aria-label="keresés folyamatban" />}
+          </button>
+          {/* wide screens: the friendly lobby is one tab (its cards side by side); phones split it in two */}
+          <button type="button" role="tab" id="tab-friendly" aria-selected={tab !== 'ranked'} className="tab tab-wide-only" onClick={() => tab === 'ranked' && setTab('play')}>
+            <Icon name="globe" scale={1} /> Barátságos {playBadge + friendsBadge > 0 && <span className="tab-count">{playBadge + friendsBadge}</span>}
+          </button>
+          <button type="button" role="tab" id="tab-play" aria-selected={tab === 'play'} className="tab tab-phone-only" onClick={() => setTab('play')}>
             <Icon name="swords" scale={1} /> Játék {playBadge > 0 && <span className="tab-count">{playBadge}</span>}
           </button>
-          <button type="button" role="tab" aria-selected={tab === 'friends'} className="tab" onClick={() => setTab('friends')}>
+          <button type="button" role="tab" id="tab-friends" aria-selected={tab === 'friends'} className="tab tab-phone-only" onClick={() => setTab('friends')}>
             <Icon name="friends" scale={1} /> Barátok {friendsBadge > 0 && <span className="tab-count">{friendsBadge}</span>}
           </button>
         </nav>
-        <div className={`online-lobby show-${tab} ${urgent ? 'has-urgent' : ''} ${account ? 'is-member' : 'is-guest'}`}>
+        <RankedPanel
+          origin={server.origin}
+          info={server.info}
+          account={account}
+          decks={decks}
+          prefs={prefs}
+          onPrefs={onPrefs}
+          onGame={onGame}
+          onSignIn={() => online.setGuest(false)}
+          hidden={tab !== 'ranked'}
+          onSearching={onSearching}
+          autoSearch={autoSearch}
+        />
+        <div className={`online-lobby show-${tab} ${tab === 'ranked' ? 'is-hidden' : ''} ${urgent ? 'has-urgent' : ''} ${account ? 'is-member' : 'is-guest'}`}>
           <PlayPanel
             origin={server.origin}
             info={server.info}

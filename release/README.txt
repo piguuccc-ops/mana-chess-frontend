@@ -50,3 +50,13 @@ FRISSÍTÉS
 ---------
 A mana-chess.html fájlt lecserélheted újra (a program minden kérésnél ellenőrzi, és az
 újat adja). Ügyelj rá, hogy a backend és a játék ugyanabból a kiadásból legyen.
+
+
+ANDROID-ALKALMAZÁS
+------------------
+Ugyanez a játék Android-alkalmazásként: a GitHub-kiadások oldalán (Releases) a
+mana-chess-vX.Y.Z.apk fájl. A telefonon letöltöd, megnyitod, egyszer engedélyezed a
+telepítést ebből a forrásból, és kész; a frissítés ugyanígy, a régire telepítve (a paklik
+és a beállítások megmaradnak). Teljes képernyős, rezeg a lépéseknél, játszma közben ébren
+tartja a képernyőt, és szerver nélkül is játszható a botok ellen. Az online játékhoz az app
+is ugyanabból a kiadásból kell legyen, mint a backend.

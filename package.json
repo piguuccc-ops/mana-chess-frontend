@@ -1,6 +1,6 @@
 {
   "name": "mana-chess-frontend",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "private": true,
   "license": "MIT",
   "author": "piguuccc-ops",
@@ -17,7 +17,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "docs:spells": "tsx scripts/gen-spells-doc.ts",
-    "balance": "tsx scripts/balance.ts"
+    "balance": "tsx scripts/balance.ts",
+    "android": "bash android/build.sh",
+    "android:icons": "tsx android/scripts/make-icons.ts"
   },
   "dependencies": {
     "react": "^19.1.0",

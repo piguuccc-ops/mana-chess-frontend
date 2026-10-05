@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { DeckDef } from '../../../engine';
 import { PASSWORD_MIN, type ColorChoice, type Presence } from '../../../net/protocol';
+import { APP_RELEASES, inAndroidApp, openExternal } from '../../native';
 import { DeckModeChoices } from '../DeckModeChoices';
 import { Icon, SpellIcon } from '../pixel';
 
@@ -35,6 +36,16 @@ export function Modal({ title, icon, children, onClose }: { title: string; icon?
         </div>
       </div>
     </Portal>
+  );
+}
+
+/** In the Android app a version clash is fixed by updating the app: a button to the download page. */
+export function UpdateAppButton() {
+  if (!inAndroidApp()) return null;
+  return (
+    <button type="button" className="btn btn-sm btn-primary" id="update-app" onClick={() => openExternal(APP_RELEASES)}>
+      <Icon name="arrowRight" scale={1} /> Az alkalmazás frissítése
+    </button>
   );
 }
 

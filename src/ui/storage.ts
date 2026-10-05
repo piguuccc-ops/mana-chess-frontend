@@ -1,10 +1,12 @@
 // Browser storage is only a convenience (saved decks, last choices). Every access
 // is wrapped because storage can be unavailable (private mode, sandboxed frames).
 import { deckShapeError, PRESET_DECKS, RANDOM_DECK_ID, randomDeck, REMOVED_SPELLS, SPELL_LIST, validateDeck, type DeckDef, type SpellId } from '../engine';
+import { BOT_IDS, type BotId } from '../bots/roster';
 import type { SoundSettings } from './audio/sound';
 
 const DECKS_KEY = 'mana-chess.decks.v1';
 const PREFS_KEY = 'mana-chess.prefs.v1';
+const BOT_RECORD_KEY = 'mana-chess.bots.v1';
 
 export interface Prefs {
   whiteDeckId: string;
@@ -26,6 +28,15 @@ export interface Prefs {
   /** Online rooms and challenges with Spell-toborzás. */
   onlineDraft: boolean;
   serverAddress: string;
+  /** Against the bots: the last bot chosen, the colour asked for, the deck taken along, Spell-toborzás. */
+  botId: BotId;
+  botColor: 'w' | 'b' | 'random';
+  botDeckId: string;
+  botDraft: boolean;
+  /** The bots talk during the game (speech bubbles and their little voices). */
+  botChat: boolean;
+  /** Phones and the Android app: short vibrations on moves, captures and checks. */
+  vibration: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
@@ -42,6 +53,12 @@ const DEFAULT_PREFS: Prefs = {
   onlineColor: 'random',
   onlineDraft: false,
   serverAddress: '',
+  botId: 'kende',
+  botColor: 'w',
+  botDeckId: 'preset-classic',
+  botDraft: false,
+  botChat: true,
+  vibration: true,
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -117,7 +134,31 @@ export function loadPrefs(): Prefs {
   if (typeof p.serverAddress !== 'string') p.serverAddress = '';
   p.draft = p.draft === true;
   p.onlineDraft = p.onlineDraft === true;
+  if (!BOT_IDS.includes(p.botId)) p.botId = DEFAULT_PREFS.botId;
+  if (!['w', 'b', 'random'].includes(p.botColor)) p.botColor = 'w';
+  if (typeof p.botDeckId !== 'string') p.botDeckId = DEFAULT_PREFS.botDeckId;
+  p.botDraft = p.botDraft === true;
+  p.botChat = p.botChat !== false;
+  p.vibration = p.vibration !== false;
+  // the old „Egyszerű AI” mode is the bots now
+  if (p.mode !== 'local') p.mode = 'local';
   return p;
+}
+
+/** Wins, losses and draws against each bot (on this device). */
+export type BotRecord = Partial<Record<BotId, { w: number; l: number; d: number }>>;
+
+export function loadBotRecord(): BotRecord {
+  const r = read<BotRecord>(BOT_RECORD_KEY, {});
+  return r && typeof r === 'object' ? r : {};
+}
+
+export function addBotResult(id: BotId, result: 'w' | 'l' | 'd'): BotRecord {
+  const r = loadBotRecord();
+  const cur = r[id] ?? { w: 0, l: 0, d: 0 };
+  r[id] = { ...cur, [result]: (cur[result] ?? 0) + 1 };
+  write(BOT_RECORD_KEY, r);
+  return r;
 }
 
 export function savePrefs(p: Prefs): void {

@@ -1778,7 +1778,7 @@
   grid-template-areas:
     'board top'
     'board status'
-    'board .'
+    'board talk'
     'board dock'
     'board bottom';
   align-items: start;
@@ -2122,10 +2122,49 @@
     padding: 4px 6px 3px;
   }
 }
-/* phones: "thinking" is the turning hourglass alone – the name keeps its room */
+/* phones: "thinking" is the turning hourglass alone, and on a bot's plate it sits on the corner of
+   the portrait – the name keeps its room instead of breaking up („Ken|de”) */
 .layout-narrow .plate-turn-text,
 .layout-flat .plate-turn-text {
   display: none;
+}
+.layout-narrow .plate-id.has-avatar,
+.layout-flat .plate-id.has-avatar {
+  position: relative;
+}
+.layout-narrow .has-avatar > .plate-turn,
+.layout-flat .has-avatar > .plate-turn {
+  position: absolute;
+  left: 22px;
+  bottom: -9px;
+  z-index: 3;
+  padding: 1px 2px 0;
+}
+/* small phones: a little tighter, so a name like „Magyar Péter” still fits on two whole lines */
+@media (max-width: 380px) {
+  .layout-narrow .plate {
+    gap: 6px;
+    padding: 1px 6px;
+  }
+  .layout-narrow .plate-mana {
+    gap: 4px;
+  }
+  .layout-narrow .plate .crystals {
+    gap: 2px;
+  }
+  .layout-narrow .plate-hand {
+    gap: 3px;
+  }
+  .layout-narrow .plate-hand .card--mini .card-face {
+    width: 26px;
+    height: 26px;
+  }
+}
+/* the smallest phones: the other player's mana as one crystal and the number */
+@media (max-width: 340px) {
+  .layout-narrow .plate-top .crystal-slot:not(:first-child) {
+    display: none;
+  }
 }
 /* phones: the name may take two lines; the mana count drops its "/6" (the crystals show it) */
 .layout-narrow .plate-name b,

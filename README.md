@@ -1,6 +1,6 @@
 # Mana Chess
 
-Chess with a Clash Royale-style mana and spell system, in the browser. You build a 6-card deck from 71
+Chess with a Clash Royale-style mana and spell system, in the browser and as an Android app. You build a 6-card deck from 71
 spells, hold 3 cards at a time, and cycle through them. You gain mana every turn and for every capture.
 Everything is drawn in pixel art made in code. The game's own text is in Hungarian.
 
@@ -8,8 +8,11 @@ Everything is drawn in pixel art made in code. The game's own text is in Hungari
 
 - **Modes:**
   - local 1v1 on one screen;
-  - a simple AI opponent;
-  - online play through the [backend](https://github.com/piguuccc-ops/mana-chess-backend).
+  - **11 bots** with Elo labels from 100 to 3000 (Kende the genius … Oli the phone taker), each with a pixel-art
+    portrait and a talkative, funny (Hungarian) personality that reacts to your moves;
+  - **ranked** online games: every account has an Elo rating, and the server pairs players of similar strength
+    (skill-based matchmaking) – only these games change the rating;
+  - friendly online play (rooms, challenges, LAN) through the [backend](https://github.com/piguuccc-ops/mana-chess-backend).
 - **Two ways to get a deck**, in every mode: your own saved decks, or **Spell-toborzás** (spell draft) –
   32 random, different spells on an 8 × 4 table, and the players take one each in turn until both have 6.
   The order of the picks is the deck's order, so the first three are the opening hand.
@@ -23,6 +26,9 @@ Everything is drawn in pixel art made in code. The game's own text is in Hungari
   added to the home screen.
 - **One file.** `npm run build` makes `dist/mana-chess.html`, the whole game in a single self-contained
   HTML file. It even runs straight from disk.
+- **Android app.** `android/` wraps the same game in a full-screen native app (vibration, screen kept on,
+  back button, works offline against the bots). Every release tag attaches the APK – see
+  [android/README.md](android/README.md).
 
 The detailed Hungarian documentation (rules, spells, architecture, pixel-art pipeline, balance test) is in
 [README.hu.md](README.hu.md). The spell list is in [SPELLS.md](SPELLS.md), and the balance report is in
@@ -86,6 +92,8 @@ npm test               # Vitest: chess rules (perft), mana, every spell, fuzzing
 npm run typecheck
 npm run docs:spells    # regenerate SPELLS.md
 npm run balance        # AI vs AI balance test → BALANCE.md (about 20 minutes)
+npx tsx scripts/bot-ladder.ts --games 8   # neighbouring bots play each other: is every bot stronger than the one below?
+npm run android        # the Android app → android/build/mana-chess.apk (needs a JDK and the Android SDK; android/README.md)
 ```
 
 **Changing the rules** (`src/engine/`, `src/net/protocol.ts`) changes the game's version. The backend
@@ -100,7 +108,8 @@ command refreshes it.
 ```
 src/
   engine/        the rules: board, moves, mana, the 71 spells, decks (pure TypeScript)
-  ai/            a small alpha-beta AI with spell evaluation
+  ai/            alpha-beta search with spell evaluation; the bots' search (time budget, quiescence) in a Web Worker
+  bots/          the 11 bots: roster (names, Elo, bios), strengths, personalities and their lines
   net/           online: protocol (shared with the backend) and the HTTP client
   ui/            screens, board, cards, the Online screen, pixel art, effects, sound
 server/
@@ -109,7 +118,8 @@ scripts/         single-file build, page-server build, version hash, spell docs,
 tests/           Vitest (fixtures/lobby.ts: copy of the backend's rooms)
 docker/          the image's health check
 release/         Start.bat / start.sh / README.txt for running without Docker
-.github/         CI, image build (GHCR + optional Docker Hub), releases, Dependabot
+android/         the Android app: MainActivity.java, resources, build.sh (no Gradle), icon generator
+.github/         CI, image build (GHCR + optional Docker Hub), releases with the APK, Android build, Dependabot
 ```
 
 ## Images and releases
@@ -119,7 +129,9 @@ GitHub Actions builds `ghcr.io/piguuccc-ops/mana-chess-frontend` for `linux/amd6
 - **Docker Hub:** also published there when the repository has the secrets `DOCKERHUB_USERNAME` and
   `DOCKERHUB_TOKEN`.
 - **Weekly rebuild:** the image is rebuilt every week.
-- **Release files:** a `v*` tag attaches `mana-chess.html` and a zip of the page server to a GitHub release.
+- **Release files:** a `v*` tag attaches `mana-chess.html`, a zip of the page server and the Android app
+  (`mana-chess-v1.2.3.apk`) to a GitHub release. Signing key and default server for the app:
+  [android/README.md](android/README.md).
 
 ## License
 

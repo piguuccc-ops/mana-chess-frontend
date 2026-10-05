@@ -123,7 +123,7 @@ export function AuthStep({ online, origin, info, guestName, onGuestName }: { onl
         {tab === 'guest' &&
           (info.guests ? (
             <>
-              <Field id="guest-name" label="A neved" value={guestName} onChange={onGuestName} icon="user" autoComplete="nickname" maxLength={NAME_MAX} placeholder="pl. Misu" />
+              <Field id="guest-name" label="A neved" value={guestName} onChange={onGuestName} icon="user" autoComplete="nickname" maxLength={NAME_MAX} placeholder="pl. Misi" />
               <p className="hint">
                 Vendégként szobát nyithatsz és beléphetsz mások szobáiba. A pakliid ebben a böngészőben maradnak; barátlista és kihívás
                 csak fiókkal van.

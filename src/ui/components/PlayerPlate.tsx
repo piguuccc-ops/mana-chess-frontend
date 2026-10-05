@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import { castBlockReason, chargeOf, COLOR_NAME_HU, effectiveCost, hand, maxMana, SPELLS } from '../../engine';
 import type { Color, EffectKind, GameState, PieceType, SpellId } from '../../engine';
 import type { Plan } from '../vfx/choreo';
+import { EloBadge } from './BotPortrait';
 import { ManaCrystals } from './ManaCrystals';
 import { Icon, PieceSprite, SpellIcon } from './pixel';
 import { SpellCard } from './SpellCard';
@@ -35,9 +37,13 @@ interface Props {
   crystalScale: number;
   /** A small card or the next card was tapped: open it for reading. */
   onInspect?: (id: SpellId) => void;
+  /** A bot's portrait in place of the crest. */
+  avatar?: ReactNode;
+  /** The player's Élő rating (bots, ranked games). */
+  elo?: { value: number; tier?: string } | null;
 }
 
-export function PlayerPlate({ state, color, label, active, thinking, placement, plan, showHand, showNext, crystalScale, onInspect }: Props) {
+export function PlayerPlate({ state, color, label, active, thinking, placement, plan, showHand, showNext, crystalScale, onInspect, avatar, elo }: Props) {
   const pl = state.players[color];
   const opp: Color = color === 'w' ? 'b' : 'w';
   const taken = state.captured[opp].filter((p) => !p.dissolved).sort((a, b) => VALUE[b.type] - VALUE[a.type]);
@@ -54,12 +60,19 @@ export function PlayerPlate({ state, color, label, active, thinking, placement, 
 
   return (
     <section className={`plate plate-${placement} plate-${color} ${active ? 'is-active' : ''}`} aria-label={`${COLOR_NAME_HU[color]} játékos`}>
-      <div className="plate-id">
-        <span className="plate-crest">
-          <Icon name={color === 'w' ? 'crestW' : 'crestB'} scale={2} />
-        </span>
+      <div className={`plate-id ${avatar ? 'has-avatar' : ''}`}>
+        {avatar ? (
+          <span className="plate-avatar">{avatar}</span>
+        ) : (
+          <span className="plate-crest">
+            <Icon name={color === 'w' ? 'crestW' : 'crestB'} scale={2} />
+          </span>
+        )}
         <div className="plate-name">
-          <b title={label}>{label}</b>
+          <span className="plate-name-row">
+            <b title={label}>{label}</b>
+            {elo && <EloBadge elo={elo.value} tier={elo.tier} />}
+          </span>
           <small>{pl.deckName}</small>
         </div>
         {active && (

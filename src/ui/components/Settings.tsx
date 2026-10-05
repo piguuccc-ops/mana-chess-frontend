@@ -1,6 +1,8 @@
 // Settings: brass sliders and lever switches on parchment. Used from the title
 // screen and from the in-game menu; every change is saved to the preferences.
 import { sfx } from '../audio/sound';
+import { BUILD_ID } from '../../net/protocol';
+import { appVersion, onPhone, vibrate } from '../native';
 import type { Prefs } from '../storage';
 
 export function Switch({ id, on, onChange, label, hint }: { id: string; on: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
@@ -75,7 +77,30 @@ export function SettingsBody({ prefs, onPrefs }: { prefs: Prefs; onPrefs: (p: Pr
           label="Tábla automatikus forgatása"
           hint="Helyi játékban mindig a soron lévő játékos van alul."
         />
+        <Switch
+          id="set-botchat"
+          on={prefs.botChat}
+          onChange={(v) => onPrefs({ ...prefs, botChat: v })}
+          label="Beszédes botok"
+          hint={prefs.botChat ? 'A botok beszélnek, és reagálnak a lépéseidre.' : 'A botok csendben játszanak.'}
+        />
+        {onPhone() && (
+          <Switch
+            id="set-vibration"
+            on={prefs.vibration}
+            onChange={(v) => {
+              onPrefs({ ...prefs, vibration: v });
+              if (v) window.setTimeout(() => vibrate(30), 30);
+            }}
+            label="Rezgés"
+            hint="Rövid rezgés lépésnél, ütésnél, sakknál és a játszma végén."
+          />
+        )}
       </section>
+      <p className="settings-version">
+        Játékverzió: {BUILD_ID}
+        {appVersion() ? ` · Android-alkalmazás ${appVersion()}` : ''}
+      </p>
     </div>
   );
 }

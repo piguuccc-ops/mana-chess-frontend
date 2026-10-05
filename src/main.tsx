@@ -14,6 +14,8 @@ import './ui/styles/rules.css';
 import './ui/styles/inspector.css';
 import './ui/styles/online.css';
 import './ui/styles/draft.css';
+import './ui/styles/bots.css';
+import './ui/styles/home.css';
 
 installTextures();
 

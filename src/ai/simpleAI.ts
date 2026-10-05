@@ -12,8 +12,8 @@ import {
 } from '../engine';
 import type { Action, Color, GameState, Move, PieceType, PromotionPiece, SpellId, Square } from '../engine';
 
-const VAL: Record<PieceType, number> = { P: 1, N: 3, B: 3.2, R: 5, Q: 9, K: 0, S: 0.4 };
-const WIN = 10000;
+export const VAL: Record<PieceType, number> = { P: 1, N: 3, B: 3.2, R: 5, Q: 9, K: 0, S: 0.4 };
+export const WIN = 10000;
 
 /**
  * Tuning knobs. `DEFAULT_AI` is the in-game opponent; the balance simulation (scripts/balance.ts)
@@ -109,7 +109,7 @@ export function evaluate(state: GameState, me: Color, ai: AIProfile = DEFAULT_AI
 }
 
 /** Evaluation that also looks at the opponent's best immediate capture next turn. */
-function threatAwareEval(raw: GameState, me: Color, ai: AIProfile = DEFAULT_AI): number {
+export function threatAwareEval(raw: GameState, me: Color, ai: AIProfile = DEFAULT_AI): number {
   // Mid-turn positions are judged as they will be when the turn ends (mines, „El az útból!” returns…).
   const state = raw.turn === me && raw.status.kind === 'playing' ? projectTurnEnd(raw) : raw;
   const base = evaluate(state, me, ai);
@@ -145,28 +145,53 @@ function defended(state: GameState, s: Square, by: Color): boolean {
   return legalMoves({ ...view, board, effects: [] }).some((m) => m.to === s && m.capture);
 }
 
-function orderMoves(state: GameState, moves: Move[]): Move[] {
+/** The most the side to move wins with one capture right now (a piece left hanging; pawns). */
+export function bestCaptureGain(state: GameState): number {
+  if (state.status.kind !== 'playing') return 0;
+  const victimSide = opposite(state.turn);
+  let best = 0;
+  for (const m of legalMoves(state, { capturesOnly: true })) {
+    const victim = state.board[m.captureSquare ?? m.to];
+    const attacker = state.board[m.from];
+    if (!victim || !attacker || victim.color !== victimSide) continue;
+    const gain = VAL[victim.type] - Math.min(VAL[victim.type], defended(state, m.to, victimSide) ? VAL[attacker.type] : 0);
+    if (gain > best) best = gain;
+  }
+  return best;
+}
+
+export function orderMoves(state: GameState, moves: Move[]): Move[] {
   const score = (m: Move) => {
     let v = 0;
+    const piece = state.board[m.from];
     if (m.capture) {
       const victim = state.board[m.captureSquare ?? m.to];
-      const attacker = state.board[m.from];
-      v += 10 * (victim ? VAL[victim.type] : 1) - (attacker ? VAL[attacker.type] : 0);
+      v += 10 * (victim ? VAL[victim.type] : 1) - (piece ? VAL[piece.type] : 0);
+    } else if (piece) {
+      // quiet moves (a narrow search looks at the first few only): towards the centre, minor
+      // pieces out first, the king and an early queen last
+      v += (centre(m.to) - centre(m.from)) * 0.3;
+      const home = piece.color === 'w' ? m.from >> 3 === 0 : m.from >> 3 === 7;
+      if ((piece.type === 'N' || piece.type === 'B') && home) v += 0.6;
+      if (piece.type === 'K') v -= 0.6;
+      else if (piece.type === 'Q' && state.turnIndex < 12) v -= 0.3;
     }
     if (m.promotion) v += 8;
     return -v;
   };
-  return [...moves].sort((a, b) => score(a) - score(b));
+  const keyed = moves.map((m) => ({ m, k: score(m) }));
+  keyed.sort((a, b) => a.k - b.k);
+  return keyed.map((x) => x.m);
 }
 
 /** The strongest piece a pawn of `color` may still become („Végzet” may have taken some). */
-const bestPromotion = (state: GameState, color: Color): PromotionPiece => promotionChoices(state, color)[0] ?? 'Q';
+export const bestPromotion = (state: GameState, color: Color): PromotionPiece => promotionChoices(state, color)[0] ?? 'Q';
 
-const moveAction = (state: GameState, m: Move): Action => ({
+export const moveAction = (state: GameState, m: Move): Action => ({
   type: 'MOVE', from: m.from, to: m.to, ...(m.promotion ? { promotion: bestPromotion(state, state.turn) } : {}),
 });
 
-function play(state: GameState, m: Move): GameState | null {
+export function play(state: GameState, m: Move): GameState | null {
   const r = applyAction(state, moveAction(state, m));
   return r.ok ? r.state : null;
 }
@@ -251,7 +276,7 @@ function* spreadCombos(state: GameState, id: SpellId, picked: Square[], budget: 
 const tryCombos = (state: GameState, id: SpellId, ai: AIProfile): Iterable<Square[]> =>
   ai.spreadCombos ? spreadCombos(state, id, [], ai.comboLimit) : combos(state, id, [], { n: ai.comboLimit });
 
-interface SpellChoice {
+export interface SpellChoice {
   spellId: SpellId;
   targets: Square[];
   score: number;
@@ -265,14 +290,14 @@ function settled(s: GameState): GameState {
 }
 
 /** After a cast: may the side to move go on (a legal move, a promotion to choose, or ending the turn)? */
-const escapes = (s: GameState) => !!s.pendingPromotion || legalMoves(s).length > 0 || canEndTurn(s);
+export const escapes = (s: GameState) => !!s.pendingPromotion || legalMoves(s).length > 0 || canEndTurn(s);
 
 /**
  * Last resort when only a spell can save the king and the sampled targets missed it (say a wall that
  * has to stand on the far side of the board): every target combination, the way the engine itself
  * decides that such an escape exists. Without it the AI would have no action at all.
  */
-function anyEscape(state: GameState, me: Color, ai: AIProfile): SpellChoice | null {
+export function anyEscape(state: GameState, me: Color, ai: AIProfile): SpellChoice | null {
   let best: SpellChoice | null = null;
   let found = 0;
   for (const id of hand(state, me)) {
@@ -290,6 +315,18 @@ function anyEscape(state: GameState, me: Color, ai: AIProfile): SpellChoice | nu
 
 /** Best spell to cast now (or null if nothing clearly pays off). */
 export function pickSpell(state: GameState, me: Color = state.turn, requireEscape = false, ai: AIProfile = DEFAULT_AI): SpellChoice | null {
+  let best: SpellChoice | null = null;
+  for (const c of spellChoices(state, me, requireEscape, ai)) if (!best || c.score > best.score) best = c;
+  if (!best) return requireEscape ? anyEscape(state, me, ai) : null;
+  if (requireEscape || best.score > ai.castThreshold) return best;
+  return null;
+}
+
+/**
+ * Every castable card with the target combinations tried, each scored by how much it improves the
+ * position (beyond the mana it costs). The bots pick from these with their own judgement.
+ */
+export function spellChoices(state: GameState, me: Color = state.turn, requireEscape = false, ai: AIProfile = DEFAULT_AI, stop?: () => boolean): SpellChoice[] {
   const baseline = threatAwareEval(state, me, ai);
   // Buffs for this turn's normal move (Francia sajt, Futólövész, Gyalogroham…) are judged by the
   // best move they unlock compared with the best move available without them (1 ply).
@@ -306,11 +343,13 @@ export function pickSpell(state: GameState, me: Color = state.turn, requireEscap
     }
     return plain;
   };
-  let best: SpellChoice | null = null;
+  const out: SpellChoice[] = [];
   for (const id of hand(state, me)) {
     if (castBlockReason(state, id) !== null) continue;
     const cost = effectiveCost(state, me, SPELLS[id]);
     for (const targets of tryCombos(state, id, ai)) {
+      // out of time (the bots' budget): what has been judged so far
+      if (stop?.()) return out;
       const r = applyAction(state, { type: 'CAST', spellId: id, targets });
       if (!r.ok) continue;
       if (requireEscape && !escapes(r.state)) continue;
@@ -322,12 +361,10 @@ export function pickSpell(state: GameState, me: Color = state.turn, requireEscap
         if (!fresh.length) continue;
         score = Math.max(...fresh.map((m) => afterMove(r.state, m))) - p.best - ai.costPenalty * cost + ai.cycleValue;
       }
-      if (!best || score > best.score) best = { spellId: id, targets, score };
+      out.push({ spellId: id, targets, score });
     }
   }
-  if (!best) return requireEscape ? anyEscape(state, me, ai) : null;
-  if (requireEscape || best.score > ai.castThreshold) return best;
-  return null;
+  return out;
 }
 
 /** Next action for the side to move (the UI calls this repeatedly with delays). */

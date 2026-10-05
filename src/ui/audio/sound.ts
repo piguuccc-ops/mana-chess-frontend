@@ -117,6 +117,17 @@ export function unlockAudio(): void {
   if (wantedAmbience && !ambienceStop) startAmbience(wantedAmbience);
 }
 
+// A hidden page (another tab, the Android app sent to the background, the phone locked) goes
+// quiet: the audio is suspended until the page is seen again.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!ctx) return;
+    if (document.hidden) {
+      if (ctx.state === 'running') void ctx.suspend().catch(() => undefined);
+    } else if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
+  });
+}
+
 export function setSoundSettings(s: SoundSettings): void {
   settings = { ...s };
   applyVolumes();
@@ -439,6 +450,18 @@ export function sfx(name: SfxName): void {
     RECIPES[name]();
   } catch {
     /* audio is decoration – never break the game */
+  }
+}
+
+/** One syllable of a bot's voice (the speech bubble's little beeps, Animal Crossing style). */
+export function voiceBlip(pitch: number, wave: OscillatorType): void {
+  const c = ensure();
+  if (!c || settings.muted || settings.master <= 0 || settings.sfx <= 0 || c.state === 'suspended') return;
+  try {
+    const f = pitch * (0.88 + Math.random() * 0.3);
+    tone({ f, f2: f * (0.92 + Math.random() * 0.16), type: wave, dur: 0.055, gain: wave === 'square' || wave === 'sawtooth' ? 0.035 : 0.07 });
+  } catch {
+    /* decoration only */
   }
 }
 

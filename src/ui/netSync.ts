@@ -12,7 +12,9 @@
 import { applyAction, isValidDraft, opposite, type DeckDef } from '../engine';
 import type { Action, Color, Draft, GameState } from '../engine';
 import type { Connection, OnlineSession } from '../net/client';
-import { colorOf, replay, setupGame, stateHash, type NetEvent, type Role, type RoomState, type Setup } from '../net/protocol';
+import {
+  colorOf, replay, setupGame, stateHash, type ForfeitReason, type NetEvent, type RatingChange, type Role, type RoomState, type Setup,
+} from '../net/protocol';
 import type { LastMove } from './history';
 
 /** An online game as the screens hold it: the room's live session and the game it is playing. */
@@ -33,6 +35,14 @@ export interface OnlineGame {
   rematch: Role[];
   opponentOnline: boolean;
   closed: string | null;
+  /** A ranked (matchmade) game: both players' Élő-pontszám at its start, by colour. Null: friendly. */
+  ranked: Record<Color, number> | null;
+  /** A ranked game that has ended: the new ratings. */
+  rated: Record<Color, RatingChange> | null;
+  /** A ranked game lost on the clock or by being away. */
+  forfeit: { by: Color; reason: ForfeitReason } | null;
+  /** A ranked game: what was left of the current turn when the room was read (ms). */
+  turnLeftMs: number | null;
 }
 
 /** A Spell-toborzás draft in an online room, as the draft screen holds it. */
@@ -56,6 +66,10 @@ export function namesByColor(names: RoomState['names'], hostColor: Color): Recor
   const guest = names.guest ?? '?';
   return hostColor === 'w' ? { w: host, b: guest } : { w: guest, b: host };
 }
+
+/** Ranked ratings by colour (a room keeps them by seat). */
+export const ratingsByColor = (r: Record<Role, number>, hostColor: Color): Record<Color, number> =>
+  hostColor === 'w' ? { w: r.host, b: r.guest } : { w: r.guest, b: r.host };
 
 /** A room in its draft → the draft screen's data (or why it cannot be shown). */
 export function draftFromRoom(session: OnlineSession, rs: RoomState): OnlineDraft | string {
@@ -95,6 +109,10 @@ export interface NetStatus {
   closed: string | null;
   /** Own steps the server has not confirmed yet. */
   unconfirmed: number;
+  /** A ranked game is over: the new ratings. */
+  rated: Record<Color, RatingChange> | null;
+  /** A ranked game lost on the clock (or by being away). */
+  forfeit: { by: Color; reason: ForfeitReason } | null;
 }
 
 export interface NetHooks {
@@ -153,6 +171,10 @@ export function gameFromRoom(session: OnlineSession, rs: RoomState): OnlineGame 
     rematch: [...rs.rematch],
     opponentOnline: rs.online[other(rs.role)],
     closed: rs.closed,
+    ranked: rs.ranked ? ratingsByColor(rs.ranked, rs.hostColor) : null,
+    rated: rs.rated ?? null,
+    forfeit: rs.forfeit ?? null,
+    turnLeftMs: rs.turnLeftMs ?? null,
   };
 }
 
@@ -174,6 +196,11 @@ export function gameFromStart(
     rematch: [],
     opponentOnline,
     closed: null,
+    // a new game in the same room: rooms with a rematch are friendly ones
+    ranked: null,
+    rated: null,
+    forfeit: null,
+    turnLeftMs: null,
   };
 }
 
@@ -233,7 +260,16 @@ export class NetSync {
     this.pace = { ...PACE, ...pace };
     this.known = { n: g.actions.length, state: g.state, lastMove: lastMoveOf(g.actions) };
     this.lastEvent = g.fromEvent;
-    this.st = { connection: g.session.connection, opponentOnline: g.opponentOnline, drawOffer: g.drawOffer, rematch: [...g.rematch], closed: g.closed, unconfirmed: 0 };
+    this.st = {
+      connection: g.session.connection,
+      opponentOnline: g.opponentOnline,
+      drawOffer: g.drawOffer,
+      rematch: [...g.rematch],
+      closed: g.closed,
+      unconfirmed: 0,
+      rated: g.rated,
+      forfeit: g.forfeit,
+    };
   }
 
   get status(): NetStatus {
@@ -401,6 +437,24 @@ export class NetSync {
       case 'closed':
         this.set({ closed: e.reason });
         return;
+      case 'rated':
+        if (e.game === g.game) this.set({ rated: e.changes });
+        return;
+      case 'forfeit': {
+        if (e.game !== g.game) return;
+        this.set({ forfeit: { by: e.by, reason: e.reason } });
+        const mine = e.by === g.me;
+        const text =
+          e.reason === 'time'
+            ? mine
+              ? 'Lejárt a lépésidőd – elvesztetted a játszmát.'
+              : `${this.opponent} lépésideje lejárt – nyertél!`
+            : mine
+              ? 'Túl sokáig nem volt kapcsolatod a szerverrel – elvesztetted a játszmát.'
+              : `${this.opponent} túl sokáig nem tért vissza – nyertél!`;
+        this.hooks.toast(text, mine ? 'error' : 'info');
+        return;
+      }
       case 'start':
         if (e.game <= g.game || e.game <= this.nextGame) return;
         this.nextGame = e.game;
@@ -499,7 +553,15 @@ export class NetSync {
         const last = rs.actions[rs.actions.length - 1];
         this.hooks.show(s, lastMove, last ? { action: last, before: this.hooks.current(), rewind: true, jump: true } : null);
         this.lastShown = performance.now();
-        this.set({ unconfirmed: 0, drawOffer: rs.drawOffer, rematch: [...rs.rematch], closed: rs.closed, opponentOnline: rs.online[other(this.g.role)] });
+        this.set({
+          unconfirmed: 0,
+          drawOffer: rs.drawOffer,
+          rematch: [...rs.rematch],
+          closed: rs.closed,
+          opponentOnline: rs.online[other(this.g.role)],
+          rated: rs.rated ?? this.st.rated,
+          forfeit: rs.forfeit ?? this.st.forfeit,
+        });
         // events that arrived while the answer was on its way
         this.g.session.events.filter((e) => e.id > rs.lastEvent).forEach((e) => this.onEvent(e));
         return;

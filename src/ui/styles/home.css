@@ -1,0 +1,711 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   The main menu (bots' hall card with the eleven faces, ranked, friendly, local, the small
+   row, the profile card), ranked play on the online screen (matchmaking radar, leaderboard)
+   and the ranked game's turn clock and rating result.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── main menu buttons: a name and a line under it ── */
+.title-menu .menu-btn {
+  min-height: 60px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.menu-btn-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+.menu-btn-label small {
+  max-width: 100%;
+  font: 400 13px/15px var(--font-body);
+  letter-spacing: 0;
+  text-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.88;
+}
+.btn-dark .menu-btn-label small {
+  color: var(--parch-200);
+}
+.btn-primary .menu-btn-label small {
+  color: var(--ink-dark-2);
+}
+.menu-btn > .elo-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* the bots' card: the button, and the faces of all eleven under it */
+.menu-bots {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 5px 12px 7px 8px;
+}
+.menu-bots-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.menu-bots-faces {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 0 14px;
+}
+.menu-face {
+  position: relative;
+  margin-left: -14px;
+  filter: grayscale(0.8) brightness(0.72);
+  transition:
+    transform 220ms var(--ease-back),
+    filter 220ms;
+}
+.menu-face .bot-portrait {
+  --size: 32px;
+  width: 38px;
+  height: 38px;
+  padding: 1px;
+  box-shadow: inset 0 0 0 2px var(--tier, #98693f), 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+.menu-face.is-beaten {
+  filter: none;
+}
+.menu-face.is-next {
+  z-index: 2;
+  filter: none;
+  transform: translateY(-3px) scale(1.14);
+}
+.menu-face.is-next::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 6px;
+  height: 4px;
+  margin-left: -3px;
+  background: var(--red);
+  box-shadow: 0 0 0 1px var(--wood-950);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+.menu-bots:hover .menu-face {
+  filter: none;
+}
+.menu-bots:hover .menu-face:nth-child(odd) {
+  transform: translateY(-2px);
+}
+.motion-reduced .menu-bots:hover .menu-face:nth-child(odd) {
+  transform: none;
+}
+
+/* decks · rules · settings */
+.title-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.title-small {
+  flex-direction: column;
+  min-height: 60px;
+  padding: 5px 4px 4px;
+  gap: 4px;
+  font: 700 13px/14px var(--font-body);
+}
+.title-small .icon {
+  margin: 0;
+}
+.title-small span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the profile card (bottom right, where the plaque used to be) */
+.title-profile {
+  position: absolute;
+  right: max(24px, 4vw);
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 300px;
+  padding: 8px 10px 10px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+  transition: opacity 300ms;
+}
+.title-screen.has-panel .title-profile {
+  opacity: 0;
+  pointer-events: none;
+}
+.profile-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-dark);
+  text-align: left;
+  cursor: pointer;
+}
+.profile-crest {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--wood-800) var(--tex-wood-dark) 0 0 / calc(var(--px) * 64) calc(var(--px) * 32);
+  box-shadow:
+    inset 0 0 0 2px var(--brass),
+    0 0 0 2px var(--wood-950);
+}
+.profile-name {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.profile-name b {
+  font: 400 18px/18px var(--font-display);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-name small {
+  font: 400 13px/15px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+.profile-stats > div {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 5px 4px 4px;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.3);
+}
+.profile-stats dt {
+  font: 700 11px/12px var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dark-2);
+}
+.profile-stats dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font: 700 14px/16px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dark);
+}
+.profile-stats .elo-badge::before {
+  content: none;
+}
+.profile-signin {
+  align-self: center;
+}
+
+/* a bot's face in the local setup's mode choices */
+.choice .choice-face {
+  grid-row: span 2;
+}
+.choice .choice-face.bot-portrait {
+  --size: 32px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .title-profile {
+    display: none;
+  }
+  .title-left {
+    padding-top: max(24px, 4vh);
+  }
+}
+/* tall phones: the profile card fits under the menu */
+@media (max-width: 900px) and (min-height: 780px) and (max-aspect-ratio: 4/5) {
+  .title-profile {
+    display: flex;
+    left: 16px;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+}
+/* narrow phones: the faces overlap a little more */
+@media (max-width: 400px) {
+  .menu-bots-faces {
+    padding-left: 18px;
+  }
+  .menu-face {
+    margin-left: -18px;
+  }
+  .title-menu .menu-btn {
+    min-height: 54px;
+    font-size: 26px;
+    line-height: 26px;
+  }
+}
+/* short portrait screens: everything a little tighter */
+@media (max-width: 900px) and (max-height: 720px) {
+  .title-left {
+    gap: 14px;
+    padding-top: 12px;
+  }
+  .title-menu {
+    gap: 8px;
+  }
+  .title-menu .menu-btn {
+    min-height: 50px;
+  }
+  .tagline {
+    display: none;
+  }
+}
+/* a phone on its side: the menu column is narrow – no faces strip, one-line buttons */
+@media (max-height: 560px) and (min-aspect-ratio: 5/4) {
+  .menu-bots-faces {
+    display: none;
+  }
+  .title-menu .menu-btn {
+    min-height: 44px;
+  }
+  .menu-btn-label small {
+    display: none;
+  }
+  .title-small {
+    min-height: 40px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .title-small span {
+    display: none;
+  }
+}
+
+/* ── the online screen's tabs: Rangsorolt · Barátságos (phones: Rangsorolt · Játék · Barátok) ── */
+.online-lobby-tabs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin: 0 0 12px;
+}
+.tab-phone-only {
+  display: none;
+}
+.tab-pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--green-light, #71b24e);
+  box-shadow: 0 0 0 2px var(--wood-950);
+  animation: net-blink 900ms steps(2, end) infinite;
+}
+.ranked-col.is-hidden,
+.online-lobby.is-hidden {
+  display: none !important;
+}
+@media (max-width: 760px) {
+  .tab-phone-only {
+    display: inline-flex;
+  }
+  .tab-wide-only {
+    display: none;
+  }
+  .online-lobby-tabs .tab {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* ── ranked play ── */
+.ranked-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2px 0 16px;
+}
+.ranked-card,
+.ranked-board {
+  animation: panel-in-mobile 320ms var(--ease-out) both;
+}
+.ranked-board {
+  animation-delay: 60ms;
+}
+.ranked-me {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ranked-rating {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 96px;
+  padding: 6px 10px 5px;
+  background: var(--wood-800) var(--tex-wood-dark) 0 0 / calc(var(--px) * 64) calc(var(--px) * 32);
+  box-shadow:
+    inset 0 0 0 3px var(--brass),
+    0 0 0 2px var(--wood-950),
+    0 4px 0 rgba(0, 0, 0, 0.35);
+}
+.ranked-rating small {
+  font: 700 11px/12px var(--font-body);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--parch-200);
+}
+.ranked-rating b {
+  font: 400 36px/36px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-light, #fff0a0);
+  text-shadow: 0 3px 0 var(--wood-950);
+}
+.ranked-me-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.ranked-me-text b {
+  font: 400 20px/20px var(--font-display);
+  overflow-wrap: anywhere;
+}
+.ranked-me-text small {
+  font: 400 14px/17px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.ranked-rules {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ranked-rules li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px;
+  font: 400 14px/18px var(--font-body);
+  color: var(--ink-dark);
+}
+.ranked-rules .icon {
+  margin-top: 1px;
+}
+.ranked-running {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(230, 191, 76, 0.18);
+  box-shadow: inset 0 0 0 2px rgba(183, 138, 43, 0.7);
+}
+.ranked-running .hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+/* searching: a radar sweeping for an opponent */
+.ranked-search {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  background: rgba(36, 81, 43, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(36, 81, 43, 0.45);
+}
+.ranked-radar {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  overflow: hidden;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 20px, rgba(182, 224, 122, 0.32) 20px 22px),
+    linear-gradient(rgba(182, 224, 122, 0.28), rgba(182, 224, 122, 0.28)) 50% 0 / 2px 100% no-repeat,
+    linear-gradient(rgba(182, 224, 122, 0.28), rgba(182, 224, 122, 0.28)) 0 50% / 100% 2px no-repeat,
+    radial-gradient(circle at 50% 50%, #24512b 0%, #16301c 72%);
+  box-shadow:
+    inset 0 0 0 3px var(--brass),
+    inset 0 0 0 6px var(--wood-950),
+    0 4px 0 rgba(0, 0, 0, 0.35);
+}
+.ranked-radar-arm {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(182, 224, 122, 0.7) 0deg, rgba(182, 224, 122, 0.18) 50deg, transparent 80deg, transparent 360deg);
+  animation: radar-sweep 2.4s steps(36) infinite;
+}
+.ranked-radar-blip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #b6e07a;
+  box-shadow: 0 0 6px #b6e07a;
+  opacity: 0;
+  animation: radar-blip 2.4s linear infinite;
+}
+.ranked-radar-blip.b1 {
+  left: 72%;
+  top: 30%;
+  animation-delay: 0.3s;
+}
+.ranked-radar-blip.b2 {
+  left: 24%;
+  top: 62%;
+  animation-delay: 1.5s;
+}
+.ranked-radar-blip.b3 {
+  left: 60%;
+  top: 76%;
+  animation-delay: 1s;
+}
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes radar-blip {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0;
+  }
+}
+.motion-reduced .ranked-radar-arm,
+.motion-reduced .ranked-radar-blip {
+  animation: none;
+}
+.motion-reduced .ranked-radar-blip.b1 {
+  opacity: 1;
+}
+.ranked-search-title {
+  margin: 0;
+  font: 400 20px/22px var(--font-display);
+  color: var(--ink-dark);
+}
+.ranked-search-clock {
+  margin: 0;
+  font: 400 30px/30px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dark);
+}
+.ranked-facts {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 12px;
+  margin: 0;
+  font: 400 14px/17px var(--font-body);
+  text-align: left;
+}
+.ranked-facts dt {
+  color: var(--ink-dark-2);
+}
+.ranked-facts dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink-dark);
+}
+
+/* the leaderboard */
+.leader-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.leader-list-me {
+  padding-top: 6px;
+  border-top: 2px dashed rgba(88, 57, 42, 0.35);
+}
+.leader-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: rgba(88, 57, 42, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(88, 57, 42, 0.3);
+}
+.leader-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: 400 16px/16px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dark);
+}
+.leader-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.leader-name b {
+  font: 700 15px/17px var(--font-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leader-name small {
+  font: 400 12px/14px var(--font-body);
+  color: var(--ink-dark-2);
+}
+.leader-item.is-top-1 {
+  background: rgba(230, 191, 76, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(183, 138, 43, 0.8);
+}
+.leader-item.is-top-2 {
+  background: rgba(185, 182, 192, 0.3);
+  box-shadow: inset 0 0 0 2px rgba(85, 82, 92, 0.55);
+}
+.leader-item.is-top-3 {
+  background: rgba(192, 122, 69, 0.22);
+  box-shadow: inset 0 0 0 2px rgba(107, 61, 31, 0.55);
+}
+.leader-item.is-me {
+  background: rgba(53, 105, 184, 0.16);
+  box-shadow: inset 0 0 0 2px rgba(53, 105, 184, 0.6);
+}
+.leader-item .elo-badge::before {
+  content: none;
+}
+
+@media (max-width: 900px) {
+  .ranked-col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .ranked-me {
+    gap: 10px;
+  }
+  .ranked-rating {
+    min-width: 80px;
+  }
+  .ranked-rating b {
+    font-size: 30px;
+    line-height: 30px;
+  }
+  .leader-item {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+}
+
+/* ── a ranked game: the turn clock, the badge, the rating at the end ── */
+.room-chip.is-ranked {
+  box-shadow: inset 0 0 0 2px var(--brass);
+  color: var(--gold-light, #fff0a0);
+  letter-spacing: 0;
+}
+.turn-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+  padding: 5px 8px 4px;
+  background: rgba(13, 9, 7, 0.6);
+  color: var(--ink-2);
+  font: 700 14px/14px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 2px var(--wood-600);
+  white-space: nowrap;
+}
+.turn-clock.is-mine {
+  color: var(--gold-light, #fff0a0);
+  box-shadow: inset 0 0 0 2px var(--brass);
+}
+.turn-clock.is-mine.is-low {
+  color: #ffd2c8;
+  background: rgba(125, 31, 34, 0.75);
+  box-shadow: inset 0 0 0 2px var(--red-light);
+  animation: clock-pulse 1s steps(2, end) infinite;
+}
+@keyframes clock-pulse {
+  50% {
+    background: rgba(179, 50, 44, 0.85);
+  }
+}
+.motion-reduced .turn-clock.is-low {
+  animation: none;
+}
+/* phones: the bar is full – the clock without its hourglass */
+.layout-narrow .turn-clock,
+.layout-flat .turn-clock {
+  margin-left: 0;
+  padding: 5px 6px 4px;
+}
+.layout-narrow .turn-clock .icon,
+.layout-flat .turn-clock .icon {
+  display: none;
+}
+.gameover-rating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 440px;
+  margin: 0 auto 10px;
+  padding: 8px 12px;
+  color: var(--ink-dark);
+  background: var(--parch-100) var(--tex-parchment) 0 0 / calc(var(--px) * 96) calc(var(--px) * 96);
+  border: 3px solid var(--wood-700);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+  font: 400 16px/20px var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+.gameover-rating b {
+  font: 400 20px/20px var(--font-display);
+}
+.gameover-rating em {
+  font-style: normal;
+  font-weight: 700;
+}
+.gameover-rating.is-up em {
+  color: #2f6b2a;
+}
+.gameover-rating.is-down em {
+  color: var(--red);
+}
+.gameover-rating.is-pending {
+  opacity: 0.85;
+}
+
+/* the version line under the settings; the „update the app” button in a version clash */
+.settings-version {
+  margin: 0;
+  font: 400 12px/14px var(--font-body);
+  color: var(--ink-dark-2);
+  text-align: right;
+  opacity: 0.8;
+}
+.msg #update-app {
+  display: flex;
+  margin-top: 8px;
+}

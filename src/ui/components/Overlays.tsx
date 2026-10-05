@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { COLOR_NAME_HU, SPELLS } from '../../engine';
 import type { Color, GameState, PieceType, PromotionPiece, SpellId } from '../../engine';
 import { sfx } from '../audio/sound';
@@ -146,18 +146,22 @@ interface OverProps {
   /** What the way out is called (online games go back to the lobby). */
   menuLabel?: string;
   onClose: () => void;
+  /** More to show under the result (the bot's last word, the rating change). */
+  extra?: ReactNode;
+  /** Says how it ended instead of the usual words (e.g. a ranked game lost on the clock). */
+  reasonText?: string;
 }
 
 /** Victory / defeat screen with a short battle summary. */
-export function GameOverScreen({ state, human, names, onRematch, rematch, onMenu, menuLabel, onClose }: OverProps) {
+export function GameOverScreen({ state, human, names, onRematch, rematch, onMenu, menuLabel, onClose, extra, reasonText }: OverProps) {
   const st = state.status;
   const winner: Color | null = st.kind === 'checkmate' || st.kind === 'resigned' ? st.winner : null;
   const outcome: 'victory' | 'defeat' | 'draw' = !winner ? 'draw' : human === null || winner === human ? 'victory' : 'defeat';
   let title = 'DÖNTETLEN';
   if (winner) title = human === null ? `A ${winner === 'w' ? 'VILÁGOS' : 'SÖTÉT'} GYŐZÖTT` : outcome === 'victory' ? 'GYŐZELEM' : 'VERESÉG';
   else if (st.kind === 'stalemate') title = 'PATT';
-  const reason =
-    st.kind === 'checkmate'
+  const reason = reasonText ??
+    (st.kind === 'checkmate'
       ? 'Sakk-matt'
       : st.kind === 'resigned'
         ? `${(names ?? COLOR_NAME_HU)[winner === 'w' ? 'b' : 'w']} feladta a játszmát`
@@ -165,7 +169,7 @@ export function GameOverScreen({ state, human, names, onRematch, rematch, onMenu
           ? 'Patt – nincs szabályos lépés'
           : st.kind === 'draw'
             ? st.reason
-            : '';
+            : '');
 
   useEffect(() => {
     sfx(outcome === 'defeat' ? 'defeat' : 'victory');
@@ -203,6 +207,7 @@ export function GameOverScreen({ state, human, names, onRematch, rematch, onMenu
           <h2>{title}</h2>
         </div>
         <p className="gameover-reason">{reason}</p>
+        {extra}
         <div className="gameover-sheet frame-parchment">
           <table className="gameover-stats">
             <thead>

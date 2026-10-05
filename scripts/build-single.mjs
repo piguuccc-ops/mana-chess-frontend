@@ -8,6 +8,19 @@ import { buildId } from './build-id.mjs';
 // esbuild comes from devDependencies; ESBUILD=<path to esbuild's main.js> can point elsewhere
 const { build } = await import(process.env.ESBUILD ?? 'esbuild');
 const id = buildId();
+// the bots think in a Web Worker: its own small bundle (engine + search), embedded as a string and
+// started from a Blob by src/ui/botRunner.ts
+const worker = await build({
+  entryPoints: ['src/ai/worker.ts'],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  target: ['es2020'],
+  define: { 'process.env.NODE_ENV': '"production"', __BUILD_ID__: JSON.stringify(id) },
+  write: false,
+  logLevel: 'warning',
+});
+const workerSrc = worker.outputFiles[0].text;
 const res = await build({
   entryPoints: ['src/main.tsx'],
   bundle: true,
@@ -15,7 +28,7 @@ const res = await build({
   format: 'iife',
   jsx: 'automatic',
   target: ['es2020'],
-  define: { 'process.env.NODE_ENV': '"production"', __BUILD_ID__: JSON.stringify(id) },
+  define: { 'process.env.NODE_ENV': '"production"', __BUILD_ID__: JSON.stringify(id), __AI_WORKER_SRC__: JSON.stringify(workerSrc) },
   outdir: 'dist/tmp',
   write: false,
   loader: { '.css': 'css' },
@@ -54,4 +67,4 @@ const notice = [
   .replace(/--/g, '- -');
 mkdirSync('dist', { recursive: true });
 writeFileSync('dist/mana-chess.html', `<!doctype html>\n<!--\n${notice}\n-->\n<html lang="hu"><head>${head}</head><body><div id="root"></div>\n<script>${js}</script></body></html>`);
-console.log(`dist/mana-chess.html – js ${(js.length / 1024).toFixed(0)} KB, css ${(css.length / 1024).toFixed(0)} KB, verzió: ${id}`);
+console.log(`dist/mana-chess.html – js ${(js.length / 1024).toFixed(0)} KB (bot worker ${(workerSrc.length / 1024).toFixed(0)} KB), css ${(css.length / 1024).toFixed(0)} KB, verzió: ${id}`);

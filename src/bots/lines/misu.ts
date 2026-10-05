@@ -1,0 +1,60 @@
+import type { BotPersona } from '../persona';
+
+// Misi the pro (az azonosítója maradt 'misu'): nagyon gazdag. Drága KTM motor (igaz, 125-ös),
+// autót akar (még nincs), imádja szívatni Kendét, csak Revolutja van, Tescóba jár Clubcarddal,
+// Somlógaluskán lakik, van 3D nyomtatója, a bolognai pizzát szereti, a trappista sajtot rendkívül utálja.
+export const misu: BotPersona = {
+  talk: 1,
+  voice: { pitch: 420, wave: 'square' },
+  lines: {
+    intro: [
+      'Csá! Gyorsan nyerjünk, mert utána megyek motorozni. KTM. 125-ös, de akkor is KTM.',
+      'Hello. Előre szólok: a pénz nem számít. Csak a győzelem. Meg a pénz.',
+      'Kezdjük. Utána bolognai pizza. Trappista nélkül, természetesen.',
+      'Csá! Kende még mindig a laptopját törölgeti? Na mindegy, kezdjük.',
+    ],
+    playerMove: [
+      'Ezt a lépést kinyomtatom 3D-ben. Elrettentő példának.',
+      'Kende is pont így lépett volna. Ez nem dicséret.',
+      'Ha jobb lépés kell, átutalom Revoluton.',
+      'A KTM-em gyorsabb, mint a gondolkodásod. Igaz, csak 125-ös.',
+      'Tesco Clubcard-pontot ezért nem kapsz.',
+      'Ezt még a 3D-nyomtatóm is jobban kiszámolta volna.',
+      'Oké. Somlógaluskán ezt máshogy csináljuk.',
+    ],
+    botMove: ['Prémium lépés. Mint egy KTM. 125-ös, de prémium.', 'Ez a lépés többe került, mint a te egész paklid.', 'Kende erre azt mondaná: „tudományosan érdekes”. Pedig csak drága.'],
+    playerCapture: [
+      'Elvitted a {pm}? Semmi gond, veszek másikat.',
+      'Ez fájt. Mint amikor trappista kerül a pizzámra.',
+      'Oké, ezt kinyomtatom 3D-ben újra. Pikk-pakk.',
+    ],
+    botCapture: [
+      'Elvittem a {pd}. Revoluton már el is utaltam a köszönetet.',
+      'Ez a {p} kell a gyűjteményembe. Kinyomtatom aranyból.',
+      'Clubcard-pont: plusz egy {p}.',
+    ],
+    playerSpell: ['„{spell}”? Ennyi manáért én egy autót vennék. Ha lenne.', 'Szép varázslat. Az enyém drágább lesz.'],
+    botSpell: ['„{spell}”. Prémium kiadás. Tesco Finest.', 'Fizetek érte. Revoluttal. Azonnal.'],
+    check: ['Sakk. Ezt nevezem prémium szolgáltatásnak.', 'Sakk! Mint egy KTM a kanyarban. 125-ös tempóval.'],
+    inCheck: ['Sakk? Nekem? Tudod te, mennyi pénzem van?', 'Kende szokott ilyet kapni, nem én!'],
+    blunder: ['Ez a lépés olcsóbb volt, mint egy Tescós zacskó.', 'Kende-szintű lépés. Gratulálok, ez nagy szó.'],
+    brilliant: ['Oké, ez jó volt. Ezt megveszem tőled.', 'Ez prémium lépés volt. Mennyiért adod?'],
+    winning: ['Gazdag vagyok, és most már a táblán is.', 'Mindjárt vége. Utána autószalon. Csak nézni.'],
+    losing: ['Ez csak egy kis befektetés. Majd megtérül.', 'Rosszul áll? Kinyomtatok magamnak új bábukat.'],
+    promotion: ['Upgrade! Mint amikor a 125-ösről autóra váltok. Egyszer.'],
+    idle: ['Gyerünk, a KTM-em már jár.', 'Lassabb vagy, mint a 125-ösöm emelkedőn.', 'Addig megnézem a Revolut-egyenlegemet. Ja, jó.'],
+    chatter: [
+      'Somlógaluskán mindenki tudja, hogy én vagyok a legjobb.',
+      'Autót akarok. Majd. Addig ott a KTM. 125-ös. De KTM.',
+      'A trappista sajt a pizza ellensége. Kibírhatatlan.',
+      'Bolognai pizza: a profik eledele. Trappista nélkül!',
+      'Tegnap kinyomtattam egy vezért. Most kettő van. Az egyik majdnem aranyból.',
+      'Kende azt hiszi, attól, hogy okos és jóképű, sakkozni is tud. Hát… okos és jóképű.',
+      'Csak Revolutom van. Bankfiókba nem járok, ott sorban kell állni.',
+      'Clubcarddal minden olcsóbb. Még a győzelem is.',
+    ],
+    win: ['GG. Ezt is hozzáadom a gyűjteményhez. Kende mellé.', 'Nyertem. Megyek, ünneplek egy bolognaival.'],
+    lose: ['Gratulálok. Átutalom a respectet Revoluton.', 'Nem baj, kinyomtatok magamnak egy trófeát. Nagyobbat.'],
+    draw: ['Döntetlen? Olyan, mint egy 125-ös KTM: majdnem.'],
+  },
+};

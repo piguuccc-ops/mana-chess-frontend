@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { aiNextAction } from '../ai/simpleAI';
+import type { BotId } from '../bots/roster';
 import { applyAction, createGame, type DeckDef } from '../engine';
 import type { Action, Color, GameState, SpellId } from '../engine';
 import { sfx } from './audio/sound';
+import { botAction } from './botRunner';
 import { GameHistory, type LastMove, type Step } from './history';
 import { lastMoveOf, NetSync, type NetStatus, type OnlineDraft, type OnlineGame } from './netSync';
 import type { Batch } from './vfx/choreo';
@@ -10,6 +11,8 @@ import type { Batch } from './vfx/choreo';
 export interface GameConfig {
   mode: 'local' | 'ai' | 'online';
   aiColor: Color;
+  /** Against a bot: which one (none: the classic in-game AI). */
+  bot?: BotId;
   decks: Record<Color, DeckDef>;
   seed: number;
   autoEndTurn: boolean;
@@ -159,7 +162,8 @@ export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame)
     return s;
   }, [show]);
 
-  // ── AI opponent (waits for the previous step's animation to breathe) ──
+  // ── AI opponent: thinks (in a worker) while the last step plays out, then waits for its
+  //    animation to breathe before acting ──
   const aiFailures = useRef(0);
   useEffect(() => {
     if (config.mode !== 'ai' || state.status.kind !== 'playing') return;
@@ -169,19 +173,33 @@ export function useGame(config: GameConfig, opts: { onNextGame?: (g: OnlineGame)
       return;
     }
     setThinking(true);
+    const asked = state;
     const busy = state.turnState.spellsCast || state.turnState.normalMoveDone;
-    const t = window.setTimeout(() => {
-      const a = aiNextAction(stateRef.current);
-      setThinking(false);
-      if (!a) return;
-      const ok = dispatch(a);
-      if (!ok && ++aiFailures.current > 3) dispatch({ type: 'RESIGN', color: config.aiColor });
-    }, Math.max(busy ? 1050 : 1300, holdUntil.current - performance.now() + 450));
+    const earliest = performance.now() + (busy ? 1050 : 1300);
+    let cancelled = false;
+    let timer = 0;
+    void botAction(asked, config.bot ?? null).then((a) => {
+      const act = () => {
+        if (cancelled || stateRef.current !== asked) return;
+        // the board may still be busy with a cinematic: wait for it
+        const wait = Math.max(earliest - performance.now(), holdUntil.current - performance.now() + 450);
+        if (wait > 0) {
+          timer = window.setTimeout(act, wait);
+          return;
+        }
+        setThinking(false);
+        if (!a) return;
+        const ok = dispatch(a);
+        if (!ok && ++aiFailures.current > 3) dispatch({ type: 'RESIGN', color: config.aiColor });
+      };
+      act();
+    });
     return () => {
-      window.clearTimeout(t);
+      cancelled = true;
+      window.clearTimeout(timer);
       setThinking(false);
     };
-  }, [state, config.mode, config.aiColor, dispatch]);
+  }, [state, config.mode, config.aiColor, config.bot, dispatch]);
 
   return {
     state,

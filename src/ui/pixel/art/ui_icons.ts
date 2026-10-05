@@ -696,4 +696,21 @@ export const UI_ICONS: Record<string, SpriteSrc> = {
     '466665554yyyxx',
     '444444444xxxxx',
   ]),
+  // a gold cup (ranked play, the leaderboard)
+  trophy: icon([
+    '..............',
+    '..qqppppppon..',
+    'oo.qNppppon.nn',
+    'o..qpppppon..n',
+    'o..qpppppon..n',
+    '.o.qpppppon.n.',
+    '..oqppppponn..',
+    '....qpppon....',
+    '.....qpon.....',
+    '......po......',
+    '......po......',
+    '....qpppon....',
+    '...qpppppon...',
+    '...onnnnnnm...',
+  ]),
 };
